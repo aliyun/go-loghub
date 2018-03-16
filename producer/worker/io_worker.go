@@ -58,7 +58,7 @@ func sendToServer(worker *IOWorker, flag string) {
 	for data := range worker.queue {
 		fmt.Printf("%s: put logs to sls %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
 
-		for retry_times := 0; retry_times < GlobalProducerConfig.RetryTimes; {
+		for retry_times := 0; retry_times < GlobalProducerConfig.RetryTimes; retry_times++ {
 			err := data.Logstore.PutLogs(data.LogGroup)
 			if err == nil {
 				fmt.Printf("PutLogs success, retry: %d\n", retry_times)

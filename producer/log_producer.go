@@ -44,7 +44,7 @@ type PackageManager struct {
 }
 
 func (p *PackageManager) Add(projectName string, logstoreName string, shardHash string,
-	loggroup *LogGroup, callback ILogCallback) {
+	loggroup *LogGroup, callback ILogCallback) error {
 	if callback != nil {
 		callback.SetSendBeginTimeInMillis(time.Now().Unix())
 	}
@@ -55,7 +55,7 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 
 	lineCounts := len(loggroup.GetLogs())
 	if lineCounts <= 0 {
-		return
+		return nil
 	}
 
 	logBytes := 0
@@ -104,13 +104,15 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 		sls_project := p.ProjectPool.GetProject(projectName)
 		if sls_project == nil {
 			fmt.Printf("can't get %s\n", projectName)
-			return
+			return NewClientError(PROJECT_NOT_EXIST)
 		}
+
 		sls_logstore, err2 := sls_project.GetLogStore(logstoreName)
 		if err2 != nil {
 			fmt.Println(err2)
-			return
+			return err2
 		}
+
 		data = &PackageData{
 			ProjectName:  projectName,
 			LogstoreName: logstoreName,
@@ -132,6 +134,8 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	}
 
 	fmt.Printf("success to add data to %s\n", logstoreName)
+
+	return nil
 }
 
 func (p *PackageManager) filterTimeoutPackage() {
@@ -159,47 +163,40 @@ type LogProducer struct {
 }
 
 func (l *LogProducer) Send(project string, logstore string, shardHash string,
-	loggroup *LogGroup, callabck ILogCallback) {
-	l.packageManager.Add(project, logstore, shardHash, loggroup, callabck)
+	loggroup *LogGroup, callabck ILogCallback) error {
+	return l.packageManager.Add(project, logstore, shardHash, loggroup, callabck)
 }
 
 func (l *LogProducer) Init(projectMap *ProjectPool) {
 
-	controlWorker := ControlWorker{
-		PackageManager: l.packageManager,
-	}
-
-	packageManager := PackageManager{
+	packageManager := &PackageManager{
 		ProjectPool: projectMap,
 		MetaLocker:  &sync.RWMutex{},
 		// Semaphore:   sync.Mutex{},
 		MetaMap:    make(map[string]*PackageMeta),
 		DataMap:    make(map[string]*PackageData),
 		Worker:     &IOWorker{},
-		CronWorker: &controlWorker,
+		CronWorker: &ControlWorker{},
 	}
 
+	packageManager.CronWorker.PackageManager = packageManager
 	packageManager.CronWorker.Init()
 	packageManager.Worker.Init()
 
-	l.packageManager = &packageManager
+	l.packageManager = packageManager
 }
 
 func (l *LogProducer) Destroy() {
-	l.packageManager.Worker.Close()
 	l.packageManager.CronWorker.Stop()
+	l.packageManager.Worker.Close()
 
-	// time.Sleep(GlobalProducerConfig.PackageTimeoutInMS * time.Millisecond)
+	time.Sleep(1 * time.Second)
 }
 
 type ControlWorker struct {
 	ScheduleFilterTimeoutPackageJob *cron.Cron
 	ScheduleFilterExpiredJob        *cron.Cron
 	PackageManager                  *PackageManager
-}
-
-func (c *ControlWorker) Run() {
-
 }
 
 func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
@@ -233,7 +230,7 @@ func (c *ControlWorker) ScheduleFilterExpiredTask() {
 }
 
 func (c *ControlWorker) Init() {
-	spec := "*/10, *, *, *, *, *" // run every 10s
+	spec := "*/5, *, *, *, *, *" // run every 5s
 
 	filterTimeoutPackageJob := cron.New()
 	filterTimeoutPackageJob.AddFunc(spec, c.ScheduleFilterTimeoutPackageTask)
@@ -250,4 +247,6 @@ func (c *ControlWorker) Init() {
 func (c *ControlWorker) Stop() {
 	c.ScheduleFilterExpiredJob.Stop()
 	c.ScheduleFilterExpiredJob.Stop()
+
+	// clean all logs
 }

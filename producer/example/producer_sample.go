@@ -12,7 +12,7 @@ import (
 var project = &LogProject{
 	Name:            "test2222222222",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
-	AccessKeyID:     "LTAIrapwKlEFaxKv",
+	AccessKeyID:     "LTAIrapwKlEFaxKvSUN",
 	AccessKeySecret: "1u0WHu1t6wrMM8TXY5SHgjO0ON77Hk",
 }
 
@@ -29,6 +29,7 @@ func main() {
 
 	producer := LogProducer{}
 	producer.Init(project_pool)
+	defer producer.Destroy()
 
 	// put logs to logstore
 	for loggroupIdx := 0; loggroupIdx < 3; loggroupIdx++ {
@@ -53,13 +54,20 @@ func main() {
 			Logs:   logs,
 		}
 
-		producer.Send(project.Name, logstore_name, "", loggroup, nil)
-		producer.Send(project.Name, logstore_name2, "", loggroup, nil)
+		err := producer.Send(project.Name, logstore_name, "", loggroup, nil)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = producer.Send(project.Name, logstore_name2, "", loggroup, nil)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	time.Sleep(10 * time.Second)
-	producer.Destroy()
+	time.Sleep(5 * time.Second)
 
 	fmt.Println("loghub sample end")
 }

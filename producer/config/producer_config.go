@@ -22,21 +22,8 @@ type ProducerConfig struct {
 	//如果发送失败，重试的次数，如果超过该值，就会将异常作为callback的参数，交由用户处理。
 	RetryTimes int
 
-	//json or protobuf
-	LogsFormat string
-
 	//userAgent
 	UserAgent string
-}
-
-func (config *ProducerConfig) Init() {
-	config.PackageTimeoutInMS = 3000
-	config.LogsCountPerPackage = 4096
-	config.LogsBytesPerPackage = 3 * 1024 * 1024
-	config.MemPoolSizeInByte = 100 * 1024 * 1024
-	config.ShardHashUpdateIntervalInMS = 10 * 60 * 1000
-	config.RetryTimes = 3
-	config.UserAgent = "loghub-producer-go"
 }
 
 var GlobalProducerConfig = ProducerConfig{

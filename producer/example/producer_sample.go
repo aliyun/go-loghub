@@ -12,8 +12,8 @@ import (
 var project = &LogProject{
 	Name:            "test2222222222",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
-	AccessKeyID:     "LTAIrapwKlEFaxKvSUN",
-	AccessKeySecret: "1u0WHu1t6wrMM8TXY5SHgjO0ON77Hk",
+	AccessKeyID:     "ak-xxx",
+	AccessKeySecret: "sk-xxx",
 }
 
 func main() {

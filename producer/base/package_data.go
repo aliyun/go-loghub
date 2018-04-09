@@ -1,9 +1,9 @@
 package sls_producer
 
 import (
-	"fmt"
 	. "github.com/aliyun/aliyun-log-go-sdk"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/callback"
+	"log"
 	"time"
 )
 
@@ -21,7 +21,7 @@ func (p *PackageData) MarkAddToIOBeginTime() {
 
 	for _, cb := range p.Callbacks {
 		cb.SetAddToIOQueueBeginTimeInMillis(curr)
-		fmt.Println("markAddToIOBeginTime %s %v", p.Logstore, cb)
+		log.Println("markAddToIOBeginTime %s %v", p.Logstore, cb)
 	}
 }
 
@@ -30,7 +30,7 @@ func (p *PackageData) MarkAddToIOEndTime() {
 
 	for _, cb := range p.Callbacks {
 		cb.SetAddToIOQueueEndTimeInMillis(curr)
-		fmt.Println("markAddToIOEndTime %s %v", p.Logstore, cb)
+		log.Println("markAddToIOEndTime %s %v", p.Logstore, cb)
 	}
 }
 
@@ -40,7 +40,7 @@ func (p *PackageData) MarkCompleteIOBeginTimeInMillis(queueSize int) {
 	for _, cb := range p.Callbacks {
 		cb.SetCompleteIOBeginTimeInMillis(curr)
 		cb.SetIOQueueSize(queueSize)
-		fmt.Println("%v markCompleteIOBeginTimeInMillis %s %v", curr, p.Logstore, cb)
+		log.Println("%v markCompleteIOBeginTimeInMillis %s %v", curr, p.Logstore, cb)
 	}
 }
 
@@ -53,10 +53,13 @@ func (p *PackageData) AddLogs(logs []*Log, callback ILogCallback) {
 
 	p.LogGroup.Logs = tmp
 
-	if p.Callbacks == nil {
-		p.Callbacks = []ILogCallback{}
+	if callback != nil {
+		if p.Callbacks == nil {
+			p.Callbacks = []ILogCallback{}
+		}
+
+		p.Callbacks = append(p.Callbacks, callback)
 	}
-	p.Callbacks = append(p.Callbacks, callback)
 }
 
 func (p *PackageData) Clear() {
@@ -71,6 +74,6 @@ func (p *PackageData) Callback(err error, srcOutFlow float32) {
 		cb.SetCompleteIOEndTimeInMillis(curr)
 		cb.SetSendBytesPerSecond(int(srcOutFlow))
 		cb.OnCompletion(err)
-		fmt.Println("test for callback, %v %v", curr, cb)
+		log.Println("callback is called, %v %v", curr, cb)
 	}
 }

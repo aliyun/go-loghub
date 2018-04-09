@@ -1,13 +1,13 @@
 package sls_producer
 
 import (
-	"fmt"
 	. "github.com/aliyun/aliyun-log-go-sdk"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/base"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/callback"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/config"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/worker"
 	"github.com/robfig/cron"
+	"log"
 	"sync"
 	"time"
 )
@@ -49,12 +49,12 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 		callback.SetSendBeginTimeInMillis(time.Now().Unix())
 	}
 
-	// todo
+	// TODO
 	// if shardHash != nil {
 	// }
 
-	lineCounts := len(loggroup.GetLogs())
-	if lineCounts <= 0 {
+	linesCount := len(loggroup.GetLogs())
+	if linesCount <= 0 {
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 				Name:           "",
 				LogLinesCount:  0,
 				PackageBytes:   0,
-				ArriveTimeInMS: time.Now().Unix(),
+				ArriveTimeInMS: time.Now().Unix() * 1000,
 			}
 			p.MetaMap[key] = meta
 		}
@@ -90,11 +90,10 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 		p.MetaLocker.RUnlock()
 	}
 
+	defer meta.Lock.Unlock()
 	data := p.DataMap[key]
-	linesCount := 10
-	if meta.LogLinesCount > 0 && (meta.LogLinesCount+linesCount >= GlobalProducerConfig.LogsCountPerPackage || meta.PackageBytes+logBytes >= GlobalProducerConfig.LogsBytesPerPackage || time.Now().Unix()-meta.ArriveTimeInMS >= GlobalProducerConfig.PackageTimeoutInMS) {
+	if meta.LogLinesCount > 0 && (meta.LogLinesCount+linesCount >= p.Config.LogsCountPerPackage || meta.PackageBytes+logBytes >= p.Config.LogsBytesPerPackage || (time.Now().Unix()*1000-meta.ArriveTimeInMS) >= p.Config.PackageTimeoutInMS) {
 		p.Worker.AddPackage(data, meta.PackageBytes)
-		// todo lock it
 		delete(p.DataMap, key)
 		data = nil
 		meta.Clear()
@@ -103,13 +102,13 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	if data == nil {
 		sls_project := p.ProjectPool.GetProject(projectName)
 		if sls_project == nil {
-			fmt.Printf("can't get %s\n", projectName)
+			log.Printf("can't get %s\n", projectName)
 			return NewClientError(PROJECT_NOT_EXIST)
 		}
 
 		sls_logstore, err2 := sls_project.GetLogStore(logstoreName)
 		if err2 != nil {
-			fmt.Println(err2)
+			log.Println(err2)
 			return err2
 		}
 
@@ -119,7 +118,6 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 			Logstore:     sls_logstore,
 			ShardHash:    shardHash,
 			LogGroup:     &LogGroup{},
-			// Callbacks: LogCallback{},
 		}
 		p.DataMap[key] = data
 	}
@@ -127,19 +125,14 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	data.AddLogs(loggroup.GetLogs(), callback)
 	meta.LogLinesCount += linesCount
 	meta.PackageBytes += logBytes
-	meta.Lock.Unlock()
 
 	if callback != nil {
-		callback.SetSendEndTimeInMillis(time.Now().Unix())
+		callback.SetSendEndTimeInMillis(time.Now().Unix() * 1000)
 	}
 
-	fmt.Printf("success to add data to %s\n", logstoreName)
+	log.Printf("success to add data to %s\n", logstoreName)
 
 	return nil
-}
-
-func (p *PackageManager) filterTimeoutPackage() {
-
 }
 
 func (p *PackageManager) Flush() {
@@ -167,8 +160,8 @@ func (l *LogProducer) Send(project string, logstore string, shardHash string,
 	return l.packageManager.Add(project, logstore, shardHash, loggroup, callabck)
 }
 
-func (l *LogProducer) Init(projectMap *ProjectPool) {
-
+func (l *LogProducer) Init(projectMap *ProjectPool, config *ProducerConfig) {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	packageManager := &PackageManager{
 		ProjectPool: projectMap,
 		MetaLocker:  &sync.RWMutex{},
@@ -177,11 +170,12 @@ func (l *LogProducer) Init(projectMap *ProjectPool) {
 		DataMap:    make(map[string]*PackageData),
 		Worker:     &IOWorker{},
 		CronWorker: &ControlWorker{},
+		Config:     config,
 	}
 
 	packageManager.CronWorker.PackageManager = packageManager
 	packageManager.CronWorker.Init()
-	packageManager.Worker.Init()
+	packageManager.Worker.Init(config)
 
 	l.packageManager = packageManager
 }
@@ -195,12 +189,12 @@ func (l *LogProducer) Destroy() {
 
 type ControlWorker struct {
 	ScheduleFilterTimeoutPackageJob *cron.Cron
-	ScheduleFilterExpiredJob        *cron.Cron
+	ScheduleUpdateShardHashJob      *cron.Cron
 	PackageManager                  *PackageManager
 }
 
 func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
-	fmt.Println("scheduleFilterTimeoutPackageTask")
+	log.Println("scheduleFilterTimeoutPackageTask")
 	p := c.PackageManager
 	if p == nil {
 		return
@@ -211,42 +205,46 @@ func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
 
 	p.MetaLocker.Lock()
 	for key, meta := range metaMap {
-		curr := time.Now().Unix()
+		if meta == nil {
+			continue
+		}
+		curr := time.Now().Unix() * 1000
 		meta.Lock.Lock()
-		if curr-meta.ArriveTimeInMS >= GlobalProducerConfig.PackageTimeoutInMS {
+		p.MetaLocker.Unlock()
+		if curr-meta.ArriveTimeInMS >= p.Config.PackageTimeoutInMS {
 			data := dataMap[key]
 			p.DataMap[key] = nil
 			p.MetaMap[key] = nil
 			p.Worker.AddPackage(data, meta.PackageBytes)
 		}
 		meta.Lock.Unlock()
+		p.MetaLocker.Lock()
 	}
-	p.MetaLocker.Lock()
+	p.MetaLocker.Unlock()
 }
 
-// TODO for refresh shard info
-func (c *ControlWorker) ScheduleFilterExpiredTask() {
-	fmt.Println("scheduleFilterExpiredTask")
+func (c *ControlWorker) ScheduleUpdateShardHashTask() {
+	log.Println("ScheduleUpdateShardHashTask")
 }
 
 func (c *ControlWorker) Init() {
-	spec := "*/5, *, *, *, *, *" // run every 5s
+	spec := "*/1, *, *, *, *, *" // run every 1s
 
 	filterTimeoutPackageJob := cron.New()
 	filterTimeoutPackageJob.AddFunc(spec, c.ScheduleFilterTimeoutPackageTask)
 	filterTimeoutPackageJob.Start()
 
-	filterExpiredJob := cron.New()
-	filterExpiredJob.AddFunc(spec, c.ScheduleFilterExpiredTask)
-	filterExpiredJob.Start()
+	updateShardHashJob := cron.New()
+	updateShardHashJob.AddFunc(spec, c.ScheduleUpdateShardHashTask)
+	updateShardHashJob.Start()
 
 	c.ScheduleFilterTimeoutPackageJob = filterTimeoutPackageJob
-	c.ScheduleFilterExpiredJob = filterExpiredJob
+	c.ScheduleUpdateShardHashJob = updateShardHashJob
 }
 
 func (c *ControlWorker) Stop() {
-	c.ScheduleFilterExpiredJob.Stop()
-	c.ScheduleFilterExpiredJob.Stop()
+	c.ScheduleFilterTimeoutPackageJob.Stop()
+	c.ScheduleUpdateShardHashJob.Stop()
 
 	// clean all logs
 }

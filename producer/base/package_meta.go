@@ -1,7 +1,7 @@
 package sls_producer
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -20,5 +20,5 @@ func (p *PackageMeta) Clear() {
 	p.PackageBytes = 0
 	p.ArriveTimeInMS = time.Now().Unix()
 
-	fmt.Println("clear PackageMeta")
+	log.Println("clear PackageMeta")
 }

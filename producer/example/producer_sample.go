@@ -4,7 +4,9 @@ import (
 	"fmt"
 	. "github.com/aliyun/aliyun-log-go-sdk"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer"
+	. "github.com/aliyun/aliyun-log-go-sdk/producer/config"
 	"github.com/gogo/protobuf/proto"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -12,12 +14,13 @@ import (
 var project = &LogProject{
 	Name:            "test2222222222",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
-	AccessKeyID:     "ak-xxx",
-	AccessKeySecret: "sk-xxx",
+	AccessKeyID:     "LTAIrapwKlEFaxKv",
+	AccessKeySecret: "1u0WHu1t6wrMM8TXY5SHgjO0ON77Hk",
 }
 
 func main() {
-	fmt.Println("loghub sample begin")
+
+	log.Println("loghub sample begin")
 
 	begin_time := uint32(time.Now().Unix())
 	rand.Seed(int64(begin_time))
@@ -28,7 +31,7 @@ func main() {
 	project_pool.UpdateProject(project)
 
 	producer := LogProducer{}
-	producer.Init(project_pool)
+	producer.Init(project_pool, &DefaultGlobalProducerConfig)
 	defer producer.Destroy()
 
 	// put logs to logstore
@@ -56,12 +59,12 @@ func main() {
 
 		err := producer.Send(project.Name, logstore_name, "", loggroup, nil)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 		err = producer.Send(project.Name, logstore_name2, "", loggroup, nil)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -69,5 +72,5 @@ func main() {
 
 	time.Sleep(5 * time.Second)
 
-	fmt.Println("loghub sample end")
+	log.Println("loghub sample end")
 }

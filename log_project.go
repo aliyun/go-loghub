@@ -7,6 +7,9 @@ import (
 	"net/http"
 )
 
+// GlobalForceUsingHTTP if GlobalForceUsingHTTP is true, then all request will use HTTP(ignore LogProject's UsingHTTP flag)
+var GlobalForceUsingHTTP = false
+
 // LogProject defines log project
 type LogProject struct {
 	Name            string // Project name
@@ -14,6 +17,7 @@ type LogProject struct {
 	AccessKeyID     string
 	AccessKeySecret string
 	SecurityToken   string
+	UsingHTTP       bool // default https
 }
 
 // NewLogProject creates a new SLS project.

@@ -52,7 +52,13 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 
 	// Initialize http request
 	reader := bytes.NewReader(body)
-	urlStr := fmt.Sprintf("https://%v.%v%v", project.Name, project.Endpoint, uri)
+	var urlStr string
+	if GlobalForceUsingHTTP || project.UsingHTTP {
+		urlStr = "http://"
+	} else {
+		urlStr = "https://"
+	}
+	urlStr += project.Name + "." + project.Endpoint + uri
 	req, err := http.NewRequest(method, urlStr, reader)
 	if err != nil {
 		return nil, err

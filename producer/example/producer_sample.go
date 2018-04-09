@@ -71,6 +71,5 @@ func main() {
 	}
 
 	time.Sleep(5 * time.Second)
-
 	log.Println("loghub sample end")
 }

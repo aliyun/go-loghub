@@ -2,6 +2,7 @@ package sls
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,15 @@ import (
 	"github.com/pierrec/lz4"
 )
 
+// compress type
+const (
+	Compress_LZ4  = iota // 0
+	Compress_None        // 1
+	Compress_Max         // max compress type(just for filter invalid compress type)
+)
+
+var InvalidCompressError = errors.New("Invalid Compress Type")
+
 // LogStore defines LogStore struct
 type LogStore struct {
 	Name       string `json:"logstoreName"`
@@ -23,12 +33,22 @@ type LogStore struct {
 	CreateTime     uint32
 	LastModifyTime uint32
 
-	project *LogProject
+	project            *LogProject
+	putLogCompressType int
 }
 
 // Shard defines shard struct
 type Shard struct {
 	ShardID int `json:"shardID"`
+}
+
+// SetPutLogCompressType set put log's compress type, default lz4
+func (s *LogStore) SetPutLogCompressType(compressType int) error {
+	if compressType < 0 || compressType >= Compress_Max {
+		return InvalidCompressError
+	}
+	s.putLogCompressType = compressType
+	return nil
 }
 
 // ListShards returns shard id list of this logstore.
@@ -97,25 +117,41 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 		return NewClientError(err.Error())
 	}
 
-	// Compresse body with lz4
-	out := make([]byte, lz4.CompressBlockBound(len(body)))
-	n, err := lz4.CompressBlock(body, out, 0)
-	if err != nil {
-		return NewClientError(err.Error())
-	}
-	// copy incompressible data as lz4 format
-	if n == 0 {
-		n, _ = copyIncompressible(body, out)
-	}
+	var out []byte
+	var h map[string]string
+	var outLen int
+	switch s.putLogCompressType {
+	case Compress_LZ4:
+		// Compresse body with lz4
+		out = make([]byte, lz4.CompressBlockBound(len(body)))
+		n, err := lz4.CompressBlock(body, out, 0)
+		if err != nil {
+			return NewClientError(err.Error())
+		}
+		// copy incompressible data as lz4 format
+		if n == 0 {
+			n, _ = copyIncompressible(body, out)
+		}
 
-	h := map[string]string{
-		"x-log-compresstype": "lz4",
-		"x-log-bodyrawsize":  fmt.Sprintf("%v", len(body)),
-		"Content-Type":       "application/x-protobuf",
+		h = map[string]string{
+			"x-log-compresstype": "lz4",
+			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
+			"Content-Type":       "application/x-protobuf",
+		}
+		outLen = n
+		break
+	case Compress_None:
+		// no compress
+		out = body
+		h = map[string]string{
+			"x-log-bodyrawsize": strconv.Itoa(len(body)),
+			"Content-Type":      "application/x-protobuf",
+		}
+		outLen = len(out)
 	}
 
 	uri := fmt.Sprintf("/logstores/%v", s.Name)
-	r, err := request(s.project, "POST", uri, h, out[:n])
+	r, err := request(s.project, "POST", uri, h, out[:outLen])
 	if err != nil {
 		return NewClientError(err.Error())
 	}

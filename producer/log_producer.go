@@ -246,5 +246,5 @@ func (c *ControlWorker) Stop() {
 	c.ScheduleFilterTimeoutPackageJob.Stop()
 	c.ScheduleUpdateShardHashJob.Stop()
 
-	// clean all logs
+	// TODO clean all logs
 }

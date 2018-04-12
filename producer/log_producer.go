@@ -1,4 +1,4 @@
-package sls_producer
+package log_producer
 
 import (
 	. "github.com/aliyun/aliyun-log-go-sdk"
@@ -48,10 +48,6 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	if callback != nil {
 		callback.SetSendBeginTimeInMillis(time.Now().Unix())
 	}
-
-	// TODO
-	// if shardHash != nil {
-	// }
 
 	linesCount := len(loggroup.GetLogs())
 	if linesCount <= 0 {
@@ -165,12 +161,11 @@ func (l *LogProducer) Init(projectMap *ProjectPool, config *ProducerConfig) {
 	packageManager := &PackageManager{
 		ProjectPool: projectMap,
 		MetaLocker:  &sync.RWMutex{},
-		// Semaphore:   sync.Mutex{},
-		MetaMap:    make(map[string]*PackageMeta),
-		DataMap:    make(map[string]*PackageData),
-		Worker:     &IOWorker{},
-		CronWorker: &ControlWorker{},
-		Config:     config,
+		MetaMap:     make(map[string]*PackageMeta),
+		DataMap:     make(map[string]*PackageData),
+		Worker:      &IOWorker{},
+		CronWorker:  &ControlWorker{},
+		Config:      config,
 	}
 
 	packageManager.CronWorker.PackageManager = packageManager
@@ -189,7 +184,6 @@ func (l *LogProducer) Destroy() {
 
 type ControlWorker struct {
 	ScheduleFilterTimeoutPackageJob *cron.Cron
-	ScheduleUpdateShardHashJob      *cron.Cron
 	PackageManager                  *PackageManager
 }
 
@@ -223,28 +217,17 @@ func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
 	p.MetaLocker.Unlock()
 }
 
-func (c *ControlWorker) ScheduleUpdateShardHashTask() {
-	log.Println("ScheduleUpdateShardHashTask")
-}
-
 func (c *ControlWorker) Init() {
-	spec := "*/1, *, *, *, *, *" // run every 1s
+	spec := "*, */10, *, *, *, *" // run every 1s
 
 	filterTimeoutPackageJob := cron.New()
 	filterTimeoutPackageJob.AddFunc(spec, c.ScheduleFilterTimeoutPackageTask)
 	filterTimeoutPackageJob.Start()
 
-	updateShardHashJob := cron.New()
-	updateShardHashJob.AddFunc(spec, c.ScheduleUpdateShardHashTask)
-	updateShardHashJob.Start()
-
 	c.ScheduleFilterTimeoutPackageJob = filterTimeoutPackageJob
-	c.ScheduleUpdateShardHashJob = updateShardHashJob
 }
 
 func (c *ControlWorker) Stop() {
 	c.ScheduleFilterTimeoutPackageJob.Stop()
-	c.ScheduleUpdateShardHashJob.Stop()
-
 	// TODO clean all logs
 }

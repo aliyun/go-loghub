@@ -1,4 +1,4 @@
-package sls_producer
+package log_producer
 
 import (
 	. "github.com/aliyun/aliyun-log-go-sdk"

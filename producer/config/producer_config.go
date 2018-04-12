@@ -1,4 +1,4 @@
-package sls_producer
+package log_producer
 
 type ProducerConfig struct {
 
@@ -21,6 +21,9 @@ type ProducerConfig struct {
 	// max retry times when failed to send logs
 	RetryTimes int
 
+	// max size of io workers and package buffer
+	IOWorkerCount int
+
 	//userAgent, not required
 	UserAgent string
 }
@@ -33,5 +36,6 @@ var DefaultGlobalProducerConfig = ProducerConfig{
 	MemPoolSizeInByte:           100 * 1024 * 1024,
 	ShardHashUpdateIntervalInMS: 10 * 60 * 1000,
 	RetryTimes:                  3,
-	UserAgent:                   "loghub-producer-go",
+	IOWorkerCount:               20,
+	UserAgent:                   "aliyun-log-producer-golang",
 }

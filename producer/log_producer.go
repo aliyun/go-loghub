@@ -1,9 +1,9 @@
 package log_producer
 
 import (
-	. "github.com/aliyun/aliyun-log-go-sdk"
+	"fmt"
+	aliyun_log "github.com/aliyun/aliyun-log-go-sdk"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/base"
-	. "github.com/aliyun/aliyun-log-go-sdk/producer/callback"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/config"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/worker"
 	"github.com/robfig/cron"
@@ -13,18 +13,21 @@ import (
 )
 
 type ProjectPool struct {
-	projectMap map[string]*LogProject
+	projectMap  map[string]*aliyun_log.LogProject
+	logStoreMap map[string]*aliyun_log.LogStore
 }
 
-func (p *ProjectPool) UpdateProject(config *LogProject) {
+func (p *ProjectPool) UpdateProject(config *aliyun_log.LogProject) {
 	if p.projectMap == nil {
-		p.projectMap = make(map[string]*LogProject)
+		p.projectMap = make(map[string]*aliyun_log.LogProject)
 	}
 
-	p.projectMap[config.Name] = config
+	if _, ok := p.projectMap[config.Name]; !ok {
+		p.projectMap[config.Name] = config
+	}
 }
 
-func (p *ProjectPool) GetProject(name string) *LogProject {
+func (p *ProjectPool) GetProject(name string) *aliyun_log.LogProject {
 	if p.projectMap == nil {
 		return nil
 	}
@@ -32,19 +35,45 @@ func (p *ProjectPool) GetProject(name string) *LogProject {
 	return p.projectMap[name]
 }
 
+func (p *ProjectPool) getLogstore(projectName string, logstoreName string) (*aliyun_log.LogStore, error) {
+	if p.logStoreMap == nil {
+		p.logStoreMap = make(map[string]*aliyun_log.LogStore)
+	}
+
+	key := fmt.Sprintf("project|%s|logstore|%s", projectName, logstoreName)
+
+	if _, ok := p.logStoreMap[key]; !ok {
+		log_project := p.GetProject(projectName)
+		if log_project == nil {
+			log.Printf("can't get project %s\n", projectName)
+			return nil, aliyun_log.NewClientError(aliyun_log.PROJECT_NOT_EXIST)
+		}
+
+		log_logstore, err2 := log_project.GetLogStore(logstoreName)
+		if err2 != nil {
+			log.Printf("can't get logstore %s, %v\n", projectName, err2)
+			return nil, aliyun_log.NewClientError(aliyun_log.LOGSTORE_NOT_EXIST)
+		}
+
+		p.logStoreMap[key] = log_logstore
+	}
+
+	return p.logStoreMap[key], nil
+}
+
 type PackageManager struct {
 	ProjectPool *ProjectPool
 	MetaLocker  *sync.RWMutex
-	// Semaphore   sync.Mutex
-	MetaMap    map[string]*PackageMeta
-	DataMap    map[string]*PackageData
-	Worker     *IOWorker
-	CronWorker *ControlWorker
-	Config     *ProducerConfig
+	DataLocker  *sync.RWMutex
+	MetaMap     map[string]*PackageMeta
+	DataMap     map[string]*PackageData
+	Worker      *IOWorker
+	CronWorker  *ControlWorker
+	Config      *ProducerConfig
 }
 
 func (p *PackageManager) Add(projectName string, logstoreName string, shardHash string,
-	loggroup *LogGroup, callback ILogCallback) error {
+	loggroup *aliyun_log.LogGroup, callback ILogCallback) error {
 	if callback != nil {
 		callback.SetSendBeginTimeInMillis(time.Now().Unix())
 	}
@@ -74,7 +103,7 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 				Name:           "",
 				LogLinesCount:  0,
 				PackageBytes:   0,
-				ArriveTimeInMS: time.Now().Unix() * 1000,
+				ArriveTimeInMS: time.Now().UnixNano() / (1000 * 1000),
 			}
 			p.MetaMap[key] = meta
 		}
@@ -87,35 +116,36 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	}
 
 	defer meta.Lock.Unlock()
-	data := p.DataMap[key]
-	if meta.LogLinesCount > 0 && (meta.LogLinesCount+linesCount >= p.Config.LogsCountPerPackage || meta.PackageBytes+logBytes >= p.Config.LogsBytesPerPackage || (time.Now().Unix()*1000-meta.ArriveTimeInMS) >= p.Config.PackageTimeoutInMS) {
+
+	if meta.LogLinesCount > 0 && (meta.LogLinesCount+linesCount >= p.Config.LogsCountPerPackage || meta.PackageBytes+logBytes >= p.Config.LogsBytesPerPackage || (time.Now().UnixNano()/(1000*1000)-meta.ArriveTimeInMS) >= p.Config.PackageTimeoutInMS) {
+		// make locked time little
+		p.DataLocker.Lock()
+		data := p.DataMap[key]
+		p.DataMap[key] = &PackageData{}
+		p.DataLocker.Unlock()
+
 		p.Worker.AddPackage(data, meta.PackageBytes)
-		delete(p.DataMap, key)
-		data = nil
 		meta.Clear()
 	}
 
+	p.DataLocker.RLock()
+	data := p.DataMap[key]
+	p.DataLocker.RUnlock()
 	if data == nil {
-		sls_project := p.ProjectPool.GetProject(projectName)
-		if sls_project == nil {
-			log.Printf("can't get %s\n", projectName)
-			return NewClientError(PROJECT_NOT_EXIST)
+		p.DataLocker.Lock()
+		data = p.DataMap[key]
+		if data == nil {
+			data = &PackageData{
+				ProjectName:  projectName,
+				LogstoreName: logstoreName,
+				ShardHash:    shardHash,
+				LogGroup:     &aliyun_log.LogGroup{},
+			}
+			p.DataMap[key] = data
 		}
+		p.DataLocker.Unlock()
 
-		sls_logstore, err2 := sls_project.GetLogStore(logstoreName)
-		if err2 != nil {
-			log.Println(err2)
-			return err2
-		}
-
-		data = &PackageData{
-			ProjectName:  projectName,
-			LogstoreName: logstoreName,
-			Logstore:     sls_logstore,
-			ShardHash:    shardHash,
-			LogGroup:     &LogGroup{},
-		}
-		p.DataMap[key] = data
+		data.Logstore, _ = p.ProjectPool.getLogstore(projectName, logstoreName)
 	}
 
 	data.AddLogs(loggroup.GetLogs(), callback)
@@ -123,7 +153,7 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	meta.PackageBytes += logBytes
 
 	if callback != nil {
-		callback.SetSendEndTimeInMillis(time.Now().Unix() * 1000)
+		callback.SetSendBeginTimeInMillis(time.Now().UnixNano() / (1000 * 1000))
 	}
 
 	log.Printf("success to add data to %s\n", logstoreName)
@@ -152,7 +182,7 @@ type LogProducer struct {
 }
 
 func (l *LogProducer) Send(project string, logstore string, shardHash string,
-	loggroup *LogGroup, callabck ILogCallback) error {
+	loggroup *aliyun_log.LogGroup, callabck ILogCallback) error {
 	return l.packageManager.Add(project, logstore, shardHash, loggroup, callabck)
 }
 
@@ -161,6 +191,7 @@ func (l *LogProducer) Init(projectMap *ProjectPool, config *ProducerConfig) {
 	packageManager := &PackageManager{
 		ProjectPool: projectMap,
 		MetaLocker:  &sync.RWMutex{},
+		DataLocker:  &sync.RWMutex{},
 		MetaMap:     make(map[string]*PackageMeta),
 		DataMap:     make(map[string]*PackageData),
 		Worker:      &IOWorker{},
@@ -202,7 +233,7 @@ func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
 		if meta == nil {
 			continue
 		}
-		curr := time.Now().Unix() * 1000
+		curr := time.Now().UnixNano() / (1000 * 1000)
 		meta.Lock.Lock()
 		p.MetaLocker.Unlock()
 		if curr-meta.ArriveTimeInMS >= p.Config.PackageTimeoutInMS {

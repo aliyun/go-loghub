@@ -2,10 +2,21 @@ package log_producer
 
 import (
 	. "github.com/aliyun/aliyun-log-go-sdk"
-	. "github.com/aliyun/aliyun-log-go-sdk/producer/callback"
 	"log"
 	"time"
 )
+
+type ILogCallback interface {
+	OnCompletion(err error)
+	SetSendBeginTimeInMillis(t int64)
+	SetSendEndTimeInMillis(t int64)
+	SetAddToIOQueueBeginTimeInMillis(t int64)
+	SetAddToIOQueueEndTimeInMillis(t int64)
+	SetCompleteIOBeginTimeInMillis(t int64)
+	SetCompleteIOEndTimeInMillis(t int64)
+	SetIOQueueSize(size int)
+	SetSendBytesPerSecond(bps int)
+}
 
 type PackageData struct {
 	ProjectName  string
@@ -68,7 +79,7 @@ func (p *PackageData) Clear() {
 }
 
 func (p *PackageData) Callback(err error, srcOutFlow float32) {
-	curr := time.Now().Unix()
+	curr := time.Now().UnixNano() / (1000 * 1000)
 
 	for _, cb := range p.Callbacks {
 		cb.SetCompleteIOEndTimeInMillis(curr)

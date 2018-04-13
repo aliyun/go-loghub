@@ -14,10 +14,6 @@ type ProducerConfig struct {
 	// memory limit of per producer, byte
 	MemPoolSizeInByte int
 
-	// interval in millisecond of update shardHash info
-	// used when shard hash parameter is assigned
-	ShardHashUpdateIntervalInMS int
-
 	// max retry times when failed to send logs
 	RetryTimes int
 
@@ -30,12 +26,11 @@ type ProducerConfig struct {
 
 // default setting of producer config
 var DefaultGlobalProducerConfig = ProducerConfig{
-	PackageTimeoutInMS:          3000,
-	LogsCountPerPackage:         4096,
-	LogsBytesPerPackage:         3 * 1024 * 1024,
-	MemPoolSizeInByte:           100 * 1024 * 1024,
-	ShardHashUpdateIntervalInMS: 10 * 60 * 1000,
-	RetryTimes:                  3,
-	IOWorkerCount:               20,
-	UserAgent:                   "aliyun-log-producer-golang",
+	PackageTimeoutInMS:  3000,
+	LogsCountPerPackage: 100,  //4096,
+	LogsBytesPerPackage: 1024, //3 * 1024 * 1024,
+	MemPoolSizeInByte:   100 * 1024 * 1024,
+	RetryTimes:          3,
+	IOWorkerCount:       10,
+	UserAgent:           "aliyun-log-producer-golang",
 }

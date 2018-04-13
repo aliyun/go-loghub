@@ -4,8 +4,8 @@ import (
 	"fmt"
 	. "github.com/aliyun/aliyun-log-go-sdk"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer"
-	. "github.com/aliyun/aliyun-log-go-sdk/producer/callback"
 	. "github.com/aliyun/aliyun-log-go-sdk/producer/config"
+	. "github.com/aliyun/aliyun-log-go-sdk/producer/example/callback"
 	"github.com/gogo/protobuf/proto"
 	"log"
 	"math/rand"
@@ -36,10 +36,10 @@ func main() {
 	defer producer.Destroy()
 
 	wg := &sync.WaitGroup{}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 50; i++ {
 		wg.Add(1)
-		// go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log-%d", i), fmt.Sprintf("10.0.0.%d", i))
-		go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log"), fmt.Sprintf("10.0.0.0"), wg)
+		go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log-%d", i), fmt.Sprintf("10.0.0.%d", i), wg)
+		// go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log"), fmt.Sprintf("10.0.0.0"), wg)
 	}
 
 	wg.Wait()
@@ -51,9 +51,9 @@ func sendLogs(producer *LogProducer, logstore_name string, topic string, source 
 	// put logs to logstore
 	for loggroupIdx := 0; loggroupIdx < 100; loggroupIdx++ {
 		logs := []*Log{}
-		for logIdx := 0; logIdx < 2; logIdx++ {
+		for logIdx := 0; logIdx < 3; logIdx++ {
 			content := []*LogContent{}
-			for colIdx := 0; colIdx < 2; colIdx++ {
+			for colIdx := 0; colIdx < 3; colIdx++ {
 				content = append(content, &LogContent{
 					Key:   proto.String(fmt.Sprintf("col_%d", colIdx)),
 					Value: proto.String(fmt.Sprintf("loggroup idx: %d, log idx: %d, col idx: %d, value: %d", loggroupIdx, logIdx, colIdx, rand.Intn(10000000))),

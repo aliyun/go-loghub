@@ -18,10 +18,9 @@ type IOWorker struct {
 func (worker *IOWorker) AddPackage(data *PackageData, bytes int) {
 	select {
 	case worker.queue <- data:
-		log.Printf("success to put logs to producer queue, %v\n", bytes)
 	default:
 		log.Println("producer queue exceed, failed to put logs to queue")
-		data.Callback(BufferBusy{}, 0)
+		go data.Callback(BufferBusy{}, 0)
 	}
 }
 
@@ -46,13 +45,12 @@ func sendToServer(worker *IOWorker, flag string) {
 	defer worker.wg.Done()
 
 	for data := range worker.queue {
-		log.Printf("%s: put logs to aliyunlog %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
+		// log.Printf("%s: put logs to aliyunlog %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
 
 		var err error
 		for retry_times := 0; retry_times < worker.config.RetryTimes; retry_times++ {
 			err = data.Logstore.PutLogs(data.LogGroup)
 			if err == nil {
-				log.Printf("%s: PutLogs success, retry: %d\n", flag, retry_times)
 				break
 			} else {
 				log.Printf("%s: PutLogs fail, retry: %d, err: %s\n", flag, retry_times, err)

@@ -14,7 +14,7 @@ import (
 )
 
 var project = &LogProject{
-	Name:            "test2222222222",
+	Name:            "test-project-for-go-producer",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
 	AccessKeyID:     "LTAIrapwKlEFaxKv",
 	AccessKeySecret: "1u0WHu1t6wrMM8TXY5SHgjO0ON77Hk",
@@ -25,7 +25,7 @@ func main() {
 
 	begin_time := uint32(time.Now().Unix())
 	rand.Seed(int64(begin_time))
-	logstore_name := "sls-test"
+	logstore_name := "test-logstore"
 	// logstore_name2 := "sls-test-2"
 
 	project_pool := &ProjectPool{}
@@ -38,18 +38,17 @@ func main() {
 	wg := &sync.WaitGroup{}
 	for i := 0; i < 50; i++ {
 		wg.Add(1)
-		go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log-%d", i), fmt.Sprintf("10.0.0.%d", i), wg)
-		// go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log"), fmt.Sprintf("10.0.0.0"), wg)
+		go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log-%d", i), fmt.Sprintf("10.10.10.%d", i), "", wg)
 	}
 
 	wg.Wait()
 	log.Println("loghub sample end")
-	time.Sleep(50 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
-func sendLogs(producer *LogProducer, logstore_name string, topic string, source string, wg *sync.WaitGroup) {
+func sendLogs(producer *LogProducer, logstore_name string, topic string, source string, shardHash string, wg *sync.WaitGroup) {
 	// put logs to logstore
-	for loggroupIdx := 0; loggroupIdx < 100; loggroupIdx++ {
+	for loggroupIdx := 0; loggroupIdx < 500; loggroupIdx++ {
 		logs := []*Log{}
 		for logIdx := 0; logIdx < 3; logIdx++ {
 			content := []*LogContent{}
@@ -71,15 +70,24 @@ func sendLogs(producer *LogProducer, logstore_name string, topic string, source 
 			Logs:   logs,
 		}
 
-		err := producer.Send(project.Name, logstore_name, "", loggroup, &DefaultLogCallback{})
+		callback := &DefaultLogCallback{
+			Producer:     producer,
+			ProjectName:  project.Name,
+			LogstoreName: logstore_name,
+			ShardHash:    shardHash,
+			Loggroup:     loggroup,
+		}
+		err := producer.Send(project.Name, logstore_name, shardHash, loggroup, callback)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		time.Sleep(5 * time.Millisecond)
-		log.Println("log routine end, ", topic, source)
+		time.Sleep(10 * time.Millisecond)
+
 	}
+
+	log.Println("[test] send log routine end, ", topic, source)
 
 	wg.Done()
 }

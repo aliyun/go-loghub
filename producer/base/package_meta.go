@@ -1,7 +1,6 @@
 package log_producer
 
 import (
-	"log"
 	"sync"
 	"time"
 )
@@ -18,6 +17,4 @@ func (p *PackageMeta) Clear() {
 	p.ArriveTimeInMS = time.Now().UnixNano() / (1000 * 1000)
 	p.LogLinesCount = 0
 	p.PackageBytes = 0
-
-	log.Println("clear PackageMeta")
 }

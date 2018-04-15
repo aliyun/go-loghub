@@ -19,18 +19,14 @@ type ProducerConfig struct {
 
 	// max size of io workers and package buffer
 	IOWorkerCount int
-
-	//userAgent, not required
-	UserAgent string
 }
 
 // default setting of producer config
 var DefaultGlobalProducerConfig = ProducerConfig{
 	PackageTimeoutInMS:  3000,
-	LogsCountPerPackage: 100,  //4096,
-	LogsBytesPerPackage: 1024, //3 * 1024 * 1024,
+	LogsCountPerPackage: 1024,
+	LogsBytesPerPackage: 3 * 1024 * 1024,
 	MemPoolSizeInByte:   100 * 1024 * 1024,
 	RetryTimes:          3,
 	IOWorkerCount:       10,
-	UserAgent:           "aliyun-log-producer-golang",
 }

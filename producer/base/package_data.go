@@ -67,9 +67,8 @@ func (p *PackageData) AddLogs(logs []*Log, callback ILogCallback) {
 	if callback != nil {
 		if p.Callbacks == nil {
 			p.Callbacks = []ILogCallback{}
+			p.Callbacks = append(p.Callbacks, callback)
 		}
-
-		p.Callbacks = append(p.Callbacks, callback)
 	}
 }
 
@@ -85,6 +84,5 @@ func (p *PackageData) Callback(err error, srcOutFlow float32) {
 		cb.SetCompleteIOEndTimeInMillis(curr)
 		cb.SetSendBytesPerSecond(int(srcOutFlow))
 		cb.OnCompletion(err)
-		log.Println("callback is called, %v %v", curr, cb)
 	}
 }

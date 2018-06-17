@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	. "github.com/aliyun/aliyun-log-go-sdk"
-	. "github.com/aliyun/aliyun-log-go-sdk/log_producer"
+	aliyun_log "github.com/aliyun/aliyun-log-go-sdk"
+	log_producer "github.com/aliyun/aliyun-log-go-sdk/log_producer"
 	"github.com/gogo/protobuf/proto"
 	"log"
 	"math/rand"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var project = &LogProject{
+var project = &aliyun_log.LogProject{
 	Name:            "test-project-for-go-producer",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
 	AccessKeyID:     "LTAIuVFxy8FHaGWD",
@@ -26,11 +26,11 @@ func main() {
 	logstore_name := "test-logstore"
 	// logstore_name2 := "sls-test-2"
 
-	project_pool := &ProjectPool{}
+	project_pool := &log_producer.ProjectPool{}
 	project_pool.UpdateProject(project)
 
-	producer := LogProducer{}
-	producer.Init(project_pool, &DefaultGlobalProducerConfig)
+	producer := log_producer.LogProducer{}
+	producer.Init(project_pool, &log_producer.DefaultGlobalProducerConfig)
 	defer producer.Destroy()
 
 	wg := &sync.WaitGroup{}
@@ -44,32 +44,32 @@ func main() {
 	log.Println("loghub sample end")
 }
 
-func sendLogs(producer *LogProducer, logstore_name string, topic string, source string, shardHash string, wg *sync.WaitGroup) {
+func sendLogs(producer *log_producer.LogProducer, logstore_name string, topic string, source string, shardHash string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for loggroupIdx := 0; loggroupIdx < 500; loggroupIdx++ {
-		logs := []*Log{}
+		logs := []*aliyun_log.Log{}
 		for logIdx := 0; logIdx < 3; logIdx++ {
-			content := []*LogContent{}
+			content := []*aliyun_log.LogContent{}
 			for colIdx := 0; colIdx < 3; colIdx++ {
-				content = append(content, &LogContent{
+				content = append(content, &aliyun_log.LogContent{
 					Key:   proto.String(fmt.Sprintf("col_%d", colIdx)),
 					Value: proto.String(fmt.Sprintf("loggroup idx: %d, log idx: %d, col idx: %d, value: %d", loggroupIdx, logIdx, colIdx, rand.Intn(10000000))),
 				})
 			}
-			log := &Log{
+			log := &aliyun_log.Log{
 				Time:     proto.Uint32(uint32(time.Now().Unix())),
 				Contents: content,
 			}
 			logs = append(logs, log)
 		}
-		loggroup := &LogGroup{
+		loggroup := &aliyun_log.LogGroup{
 			Topic:  proto.String(topic),
 			Source: proto.String(source),
 			Logs:   logs,
 		}
 
-		callback := &DefaultLogCallback{
+		callback := &log_producer.DefaultLogCallback{
 			Producer:     producer,
 			ProjectName:  project.Name,
 			LogstoreName: logstore_name,
@@ -83,7 +83,6 @@ func sendLogs(producer *LogProducer, logstore_name string, topic string, source 
 		}
 
 		time.Sleep(50 * time.Millisecond)
-
 	}
 
 	log.Println("[test] send log routine end, ", topic, source)

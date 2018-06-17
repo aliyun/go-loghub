@@ -2,7 +2,6 @@ package log_producer
 
 import (
 	aliyun_log "github.com/aliyun/aliyun-log-go-sdk"
-	"log"
 	"sync"
 	"time"
 )
@@ -38,7 +37,7 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	key := projectName + "|" + logstoreName + "|" + topic + "|" + shardHash + "|" + source
 
 retry:
-	log.Printf("add logs to data cache, key = %s\n", key)
+	Debug.Printf("add logs to data cache, key = %s\n", key)
 
 	p.DataLocker.RLock()
 	data, ok = p.DataMap[key]
@@ -72,7 +71,7 @@ retry:
 		data.Lock.Lock()
 		if data.SendToQueue {
 			// data may has been send to queue, so retry to get data
-			log.Println("data logs have been send to queur, so retry to get new data")
+			Debug.Println("data logs have been send to queue, so retry to get new data")
 
 			data.Lock.Unlock()
 			p.DataLocker.RUnlock()
@@ -80,7 +79,7 @@ retry:
 			goto retry
 		} else if data.LogLinesCount > 0 && (data.LogLinesCount+linesCount >= p.Config.LogsCountPerPackage || data.PackageBytes+logBytes >= p.Config.LogsBytesPerPackage || (time.Now().UnixNano()/(1000*1000)-data.ArriveTimeInMS) >= p.Config.PackageTimeoutInMS) {
 			// submit data to sls server, if it reach limit of data cache
-			log.Println("data logs that existed have reach limits of data cache, so send logs to server first, and then retry to get new data")
+			Debug.Println("data logs that existed have reach limits of data cache, so send logs to server first, and then retry to get new data")
 			p.Worker.addPackage(data)
 
 			p.DataLocker.RUnlock()
@@ -95,7 +94,7 @@ retry:
 		p.DataLocker.RUnlock()
 	}
 
-	log.Println("data entry existed, so add logs to data cache")
+	Debug.Println("data entry existed, so add logs to data cache")
 	data.addLogs(loggroup.GetLogs(), callback)
 	data.LogLinesCount += linesCount
 	data.PackageBytes += logBytes

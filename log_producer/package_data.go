@@ -1,8 +1,7 @@
 package log_producer
 
 import (
-	. "github.com/aliyun/aliyun-log-go-sdk"
-	"log"
+	aliyun_log "github.com/aliyun/aliyun-log-go-sdk"
 	"sync"
 	"time"
 )
@@ -29,13 +28,13 @@ type PackageData struct {
 	PackageBytes   int
 	Lock           *sync.Mutex
 
-	Logstore    *LogStore
-	LogGroup    *LogGroup
+	Logstore    *aliyun_log.LogStore
+	LogGroup    *aliyun_log.LogGroup
 	Callbacks   []ILogCallback
 	SendToQueue bool
 }
 
-func (p *PackageData) addLogs(logs []*Log, callback ILogCallback) {
+func (p *PackageData) addLogs(logs []*aliyun_log.Log, callback ILogCallback) {
 	tmp := p.LogGroup.Logs
 	for _, log := range logs {
 		tmp = append(tmp, log)
@@ -75,7 +74,7 @@ func (p *PackageData) MarkAddToIOBeginTime() {
 
 	for _, cb := range p.Callbacks {
 		cb.SetAddToIOQueueBeginTimeInMillis(curr)
-		log.Println("markAddToIOBeginTime %s %v", p.Logstore, cb)
+		Info.Println("markAddToIOBeginTime %s %v", p.Logstore, cb)
 	}
 }
 
@@ -84,7 +83,7 @@ func (p *PackageData) MarkAddToIOEndTime() {
 
 	for _, cb := range p.Callbacks {
 		cb.SetAddToIOQueueEndTimeInMillis(curr)
-		log.Println("markAddToIOEndTime %s %v", p.Logstore, cb)
+		Info.Println("markAddToIOEndTime %s %v", p.Logstore, cb)
 	}
 }
 
@@ -94,6 +93,6 @@ func (p *PackageData) MarkCompleteIOBeginTimeInMillis(queueSize int) {
 	for _, cb := range p.Callbacks {
 		cb.SetCompleteIOBeginTimeInMillis(curr)
 		cb.SetIOQueueSize(queueSize)
-		log.Println("%v markCompleteIOBeginTimeInMillis %s %v", curr, p.Logstore, cb)
+		Info.Println("%v markCompleteIOBeginTimeInMillis %s %v", curr, p.Logstore, cb)
 	}
 }

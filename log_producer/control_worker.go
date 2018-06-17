@@ -2,7 +2,6 @@ package log_producer
 
 import (
 	"github.com/robfig/cron"
-	"log"
 	"time"
 )
 
@@ -15,7 +14,7 @@ type ControlWorker struct {
 }
 
 func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
-	log.Println("filterTimeoutPackageTask begins")
+	Info.Println("filterTimeoutPackageTask begins")
 	p := c.PackageManager
 	if p == nil {
 		return
@@ -37,7 +36,7 @@ func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
 		p.DataLocker.Lock()
 	}
 	p.DataLocker.Unlock()
-	log.Println("filterTimeoutPackageTask ends")
+	Info.Println("filterTimeoutPackageTask ends")
 }
 
 func (c *ControlWorker) Init() {

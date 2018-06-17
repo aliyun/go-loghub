@@ -14,8 +14,8 @@ import (
 var project = &LogProject{
 	Name:            "test-project-for-go-producer",
 	Endpoint:        "cn-beijing.log.aliyuncs.com",
-	AccessKeyID:     "LTAIrapwKlEFaxKv",
-	AccessKeySecret: "1u0WHu1t6wrMM8TXY5SHgjO0ON77Hk",
+	AccessKeyID:     "LTAIuVFxy8FHaGWD",
+	AccessKeySecret: "8QzfYMDxxiyFZDzJ2m1W2YtOJcVi0c",
 }
 
 func main() {
@@ -34,12 +34,13 @@ func main() {
 	defer producer.Destroy()
 
 	wg := &sync.WaitGroup{}
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go sendLogs(&producer, logstore_name, fmt.Sprintf("test-log-%d", i), fmt.Sprintf("10.10.10.%d", i), "", wg)
 	}
 
 	wg.Wait()
+	// time.Sleep(5 * time.Second)
 	log.Println("loghub sample end")
 }
 
@@ -81,7 +82,7 @@ func sendLogs(producer *LogProducer, logstore_name string, topic string, source 
 			return
 		}
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
 	}
 

@@ -18,6 +18,7 @@ func (worker *IOWorker) addPackage(data *PackageData) {
 
 	select {
 	case worker.queue <- data:
+		log.Println("io worker received data successfully")
 	default:
 		log.Println("producer queue exceed, failed to put logs to queue")
 		go data.Callback(BufferBusy{}, 0)
@@ -25,8 +26,10 @@ func (worker *IOWorker) addPackage(data *PackageData) {
 }
 
 func (i *IOWorker) Close() {
+	log.Println("io worker start to close")
 	close(i.queue)
 	i.wg.Wait()
+	log.Println("io worker closed successfully")
 }
 
 func (worker *IOWorker) Init(config *ProducerConfig) {
@@ -45,7 +48,7 @@ func sendToServer(worker *IOWorker, flag string) {
 	defer worker.wg.Done()
 
 	for data := range worker.queue {
-		// log.Printf("%s: put logs to aliyunlog %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
+		log.Printf("%s: begin to put logs to aliyunlog %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
 
 		var err error
 		for retry_times := 0; retry_times < worker.config.RetryTimes; retry_times++ {
@@ -61,6 +64,8 @@ func sendToServer(worker *IOWorker, flag string) {
 		if err != nil {
 			data.Callback(err, 0)
 		}
+
+		log.Printf("%s: success to put logs to aliyunlog %s , %d\n", flag, data.LogstoreName, data.LogGroup.Size())
 	}
 
 	log.Printf("%s: go routine exit\n", flag)

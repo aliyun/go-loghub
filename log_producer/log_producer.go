@@ -15,6 +15,9 @@ func (l *LogProducer) Send(project string, logstore string, shardHash string,
 	return l.packageManager.Add(project, logstore, shardHash, loggroup, callabck)
 }
 
+/**
+start cron-job, push to log server periodly, and send expired data to server
+*/
 func (l *LogProducer) Init(projectMap *ProjectPool, config *ProducerConfig) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	packageManager := &PackageManager{
@@ -38,5 +41,4 @@ func (l *LogProducer) Destroy() {
 
 	l.packageManager.CronWorker.Stop()
 	l.packageManager.Worker.Close()
-
 }

@@ -24,9 +24,9 @@ type ProducerConfig struct {
 // default setting of producer config
 var DefaultGlobalProducerConfig = ProducerConfig{
 	PackageTimeoutInMS:  3000,
-	LogsCountPerPackage: 1024,
+	LogsCountPerPackage: 128,
 	LogsBytesPerPackage: 3 * 1024 * 1024,
 	MemPoolSizeInByte:   100 * 1024 * 1024,
 	RetryTimes:          3,
-	IOWorkerCount:       10,
+	IOWorkerCount:       5,
 }

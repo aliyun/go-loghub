@@ -6,13 +6,16 @@ import (
 	"time"
 )
 
+/**
+cron job, clean timeout data cache periodly
+*/
 type ControlWorker struct {
 	ScheduleFilterTimeoutPackageJob *cron.Cron
 	PackageManager                  *PackageManager
 }
 
 func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
-	log.Println("scheduleFilterTimeoutPackageTask")
+	log.Println("filterTimeoutPackageTask begins")
 	p := c.PackageManager
 	if p == nil {
 		return
@@ -34,6 +37,7 @@ func (c *ControlWorker) ScheduleFilterTimeoutPackageTask() {
 		p.DataLocker.Lock()
 	}
 	p.DataLocker.Unlock()
+	log.Println("filterTimeoutPackageTask ends")
 }
 
 func (c *ControlWorker) Init() {

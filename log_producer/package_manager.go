@@ -2,6 +2,7 @@ package log_producer
 
 import (
 	aliyun_log "github.com/aliyun/aliyun-log-go-sdk"
+	"log"
 	"sync"
 	"time"
 )
@@ -18,6 +19,9 @@ type PackageManager struct {
 func (p *PackageManager) Add(projectName string, logstoreName string, shardHash string,
 	loggroup *aliyun_log.LogGroup, callback ILogCallback) error {
 
+	var data *PackageData
+	var ok bool
+
 	if callback != nil {
 		callback.SetSendBeginTimeInMillis(time.Now().Unix())
 	}
@@ -33,10 +37,9 @@ func (p *PackageManager) Add(projectName string, logstoreName string, shardHash 
 	source := loggroup.GetSource()
 	key := projectName + "|" + logstoreName + "|" + topic + "|" + shardHash + "|" + source
 
-	var data *PackageData
-	var ok bool
-
 retry:
+	log.Printf("add logs to data cache, key = %s\n", key)
+
 	p.DataLocker.RLock()
 	data, ok = p.DataMap[key]
 	if !ok {
@@ -69,23 +72,30 @@ retry:
 		data.Lock.Lock()
 		if data.SendToQueue {
 			// data may has been send to queue, so retry to get data
+			log.Println("data logs have been send to queur, so retry to get new data")
+
 			data.Lock.Unlock()
 			p.DataLocker.RUnlock()
+
 			goto retry
 		} else if data.LogLinesCount > 0 && (data.LogLinesCount+linesCount >= p.Config.LogsCountPerPackage || data.PackageBytes+logBytes >= p.Config.LogsBytesPerPackage || (time.Now().UnixNano()/(1000*1000)-data.ArriveTimeInMS) >= p.Config.PackageTimeoutInMS) {
+			// submit data to sls server, if it reach limit of data cache
+			log.Println("data logs that existed have reach limits of data cache, so send logs to server first, and then retry to get new data")
 			p.Worker.addPackage(data)
+
 			p.DataLocker.RUnlock()
 			p.DataLocker.Lock()
-			p.DataMap[key] = nil
-			p.DataLocker.Unlock()
+
+			delete(p.DataMap, key)
 			data.Lock.Unlock()
+			p.DataLocker.Unlock()
 
 			goto retry
 		}
+		p.DataLocker.RUnlock()
 	}
 
-	defer data.Lock.Unlock()
-
+	log.Println("data entry existed, so add logs to data cache")
 	data.addLogs(loggroup.GetLogs(), callback)
 	data.LogLinesCount += linesCount
 	data.PackageBytes += logBytes
@@ -93,6 +103,8 @@ retry:
 	if callback != nil {
 		callback.SetSendBeginTimeInMillis(time.Now().UnixNano() / (1000 * 1000))
 	}
+
+	data.Lock.Unlock()
 
 	return nil
 }

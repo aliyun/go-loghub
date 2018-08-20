@@ -196,7 +196,7 @@ func (s *LogstoreTestSuite) TestLogstore() {
 	logstoreName := "github-test"
 	err := s.Project.DeleteLogStore(logstoreName)
 	time.Sleep(5 * 1000 * time.Millisecond)
-	err = s.Project.CreateLogStore(logstoreName, 14, 2)
+	err = s.Project.CreateLogStore(logstoreName, 14, 2, true, 16)
 	s.Nil(err)
 	time.Sleep(10 * 1000 * time.Millisecond)
 	err = s.Project.UpdateLogStore(logstoreName, 7, 2)

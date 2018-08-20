@@ -38,7 +38,7 @@ func makeSureLogstoreExist(c *Client, project, logstore string) error {
 	if ok, err := c.CheckLogstoreExist(project, logstore); err != nil {
 		return err
 	} else if !ok {
-		err := c.CreateLogStore(project, logstore, 1, 2)
+		err := c.CreateLogStore(project, logstore, 1, 2, true, 16)
 		if err != nil {
 			return err
 		}

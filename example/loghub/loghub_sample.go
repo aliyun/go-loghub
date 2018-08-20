@@ -105,7 +105,7 @@ func main() {
 	var next_cursor string
 	var loggrouplist *sls.LogGroupList
 	for _, sh := range shards {
-		sh = int(sh)
+		sh = sh.(int)
 		if sh == 0 {
 			// sample of pulllogs from begin
 			// GetCursor API Ref: https://intl.aliyun.com/help/doc-detail/29024.htm

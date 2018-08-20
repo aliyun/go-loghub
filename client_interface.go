@@ -64,8 +64,10 @@ type ClientInterface interface {
 	// CreateLogStore creates a new logstore in SLS,
 	// where name is logstore name,
 	// and ttl is time-to-live(in day) of logs,
-	// and shardCnt is the number of shards.
-	CreateLogStore(project string, logstore string, ttl, shardCnt int) error
+	// and shardCnt is the number of shards,
+	// and autoSplit is auto split,
+	// and maxSplitShard is the max number of shard.
+	CreateLogStore(project string, logstore string, ttl, shardCnt int, autoSplit bool, maxSplitShard int) error
 	// DeleteLogStore deletes a logstore according by logstore name.
 	DeleteLogStore(project string, logstore string) (err error)
 	// UpdateLogStore updates a logstore according by logstore name,
@@ -136,7 +138,7 @@ type ClientInterface interface {
 	PutLogs(project, logstore string, lg *LogGroup) (err error)
 	// PostLogStoreLogs put logs into Shard logstore by hashKey.
 	// The callers should transform user logs into LogGroup.
-	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey* string) (err error)
+	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error)
 	// PutLogsWithCompressType put logs into logstore with specific compress type.
 	// The callers should transform user logs into LogGroup.
 	PutLogsWithCompressType(project, logstore string, lg *LogGroup, compressType int) (err error)

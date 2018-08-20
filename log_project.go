@@ -98,17 +98,23 @@ func (p *LogProject) GetLogStore(name string) (*LogStore, error) {
 // CreateLogStore creates a new logstore in SLS,
 // where name is logstore name,
 // and ttl is time-to-live(in day) of logs,
-// and shardCnt is the number of shards.
-func (p *LogProject) CreateLogStore(name string, ttl, shardCnt int) error {
+// and shardCnt is the number of shards,
+// and autoSplit is auto split,
+// and maxSplitShard is the max number of shard.
+func (p *LogProject) CreateLogStore(name string, ttl, shardCnt int, autoSplit bool, maxSplitShard int) error {
 	type Body struct {
-		Name       string `json:"logstoreName"`
-		TTL        int    `json:"ttl"`
-		ShardCount int    `json:"shardCount"`
+		Name          string `json:"logstoreName"`
+		TTL           int    `json:"ttl"`
+		ShardCount    int    `json:"shardCount"`
+		AutoSplit     bool   `json:"autoSplit"`
+		MaxSplitShard int    `json:"maxSplitShard"`
 	}
 	store := &Body{
-		Name:       name,
-		TTL:        ttl,
-		ShardCount: shardCnt,
+		Name:          name,
+		TTL:           ttl,
+		ShardCount:    shardCnt,
+		AutoSplit:     autoSplit,
+		MaxSplitShard: maxSplitShard,
 	}
 	body, err := json.Marshal(store)
 	if err != nil {

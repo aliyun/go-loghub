@@ -16,7 +16,7 @@ func main() {
 	logstore_name := "test"
 	util.Client.DeleteLogStore(util.ProjectName, logstore_name)
 	time.Sleep(15 * 1000 * time.Millisecond)
-	err := util.Client.CreateLogStore(util.ProjectName, logstore_name, 1, 2)
+	err := util.Client.CreateLogStore(util.ProjectName, logstore_name, 1, 2, true, 16)
 	if err != nil {
 		fmt.Printf("CreateLogStore fail, err: %s", err)
 		return

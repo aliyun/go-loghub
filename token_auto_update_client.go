@@ -195,9 +195,9 @@ func (c *TokenAutoUpdateClient) GetLogStore(project string, logstore string) (lo
 	return
 }
 
-func (c *TokenAutoUpdateClient) CreateLogStore(project string, logstore string, ttl, shardCnt int) (err error) {
+func (c *TokenAutoUpdateClient) CreateLogStore(project string, logstore string, ttl, shardCnt int, autoSplit bool, maxSplitShard int) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		err = c.logClient.CreateLogStore(project, logstore, ttl, shardCnt)
+		err = c.logClient.CreateLogStore(project, logstore, ttl, shardCnt, autoSplit, maxSplitShard)
 		if !c.processError(err) {
 			return
 		}

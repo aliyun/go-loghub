@@ -91,7 +91,7 @@ func main() {
 		if retry_times > 5 {
 			return
 		}
-		shards, err = util.Client.ListShards(util.ProjectName, logstore_name)
+		shardsSlice, err = util.Client.ListShards(util.ProjectName, logstore_name)
 		if err != nil {
 			fmt.Printf("ListShards fail, retry: %d, err:%v\n", retry_times, err)
 		} else {
@@ -102,10 +102,10 @@ func main() {
 	}
 	var begin_cursor string
 	var end_cursor string
-	var next_cursor string
+	var next_cursor string†
 	var loggrouplist *sls.LogGroupList
-	for _, sh := range shards {
-		sh = sh.(int)
+	for _, shard := range shards {
+		sh := fmt.Sprintf("%d", shard)
 		if sh == 0 {
 			// sample of pulllogs from begin
 			// GetCursor API Ref: https://intl.aliyun.com/help/doc-detail/29024.htm

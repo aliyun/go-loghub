@@ -91,7 +91,7 @@ func main() {
 		if retry_times > 5 {
 			return
 		}
-		shardsSlice, err = util.Client.ListShards(util.ProjectName, logstore_name)
+		shards, err = util.Client.ListShards(util.ProjectName, logstore_name)
 		if err != nil {
 			fmt.Printf("ListShards fail, retry: %d, err:%v\n", retry_times, err)
 		} else {

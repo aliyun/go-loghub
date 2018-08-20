@@ -86,7 +86,7 @@ func main() {
 		time.Sleep(200 * time.Millisecond)
 	}
 	// pull logs from logstore
-	var shards []*Shard
+	var shards []*sls.Shard
 	for retry_times = 0; ; retry_times++ {
 		if retry_times > 5 {
 			return

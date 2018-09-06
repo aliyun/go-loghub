@@ -13,7 +13,8 @@ import (
 	"github.com/golang/glog"
 )
 
-// request sends a request to SLS.
+// request sends a request to alibaba cloud Log Service.
+// @note if error is nil, you must call http.Response.Body.Close() to finalize reader
 func request(project *LogProject, method, uri string, headers map[string]string,
 	body []byte) (*http.Response, error) {
 
@@ -23,10 +24,21 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 	}
 
 	// SLS public request headers
-	headers["Host"] = project.Name + "." + project.Endpoint
+	var hostStr string
+	if len(project.Name) == 0 {
+		hostStr = project.Endpoint
+	} else {
+		hostStr = project.Name + "." + project.Endpoint
+	}
+	headers["Host"] = hostStr
 	headers["Date"] = nowRFC1123()
 	headers["x-log-apiversion"] = version
 	headers["x-log-signaturemethod"] = signatureMethod
+	if len(project.UserAgent) > 0 {
+		headers["User-Agent"] = project.UserAgent
+	} else {
+		headers["User-Agent"] = defaultLogUserAgent
+	}
 
 	// Access with token
 	if project.SecurityToken != "" {
@@ -43,7 +55,7 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 
 	// Calc Authorization
 	// Authorization = "SLS <AccessKeyId>:<Signature>"
-	digest, err := signature(project, method, uri, headers)
+	digest, err := signature(project.AccessKeySecret, method, uri, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +70,7 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 	} else {
 		urlStr = "https://"
 	}
-	urlStr += project.Name + "." + project.Endpoint + uri
+	urlStr += hostStr + uri
 	req, err := http.NewRequest(method, urlStr, reader)
 	if err != nil {
 		return nil, err
@@ -67,7 +79,7 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 		req.Header.Add(k, v)
 	}
 
-	if glog.V(1) {
+	if glog.V(5) {
 		dump, e := httputil.DumpRequest(req, true)
 		if e != nil {
 			glog.Info(e)
@@ -84,6 +96,7 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 	// Parse the sls error from body.
 	if resp.StatusCode != http.StatusOK {
 		err := &Error{}
+		err.HTTPCode = (int32)(resp.StatusCode)
 		defer resp.Body.Close()
 		buf, _ := ioutil.ReadAll(resp.Body)
 		json.Unmarshal(buf, err)
@@ -91,7 +104,7 @@ func request(project *LogProject, method, uri string, headers map[string]string,
 		return nil, err
 	}
 
-	if glog.V(1) {
+	if glog.V(5) {
 		dump, e := httputil.DumpResponse(resp, true)
 		if e != nil {
 			glog.Info(e)

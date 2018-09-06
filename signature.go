@@ -21,7 +21,7 @@ func nowRFC1123() string {
 }
 
 // signature calculates a request's signature digest.
-func signature(project *LogProject, method, uri string,
+func signature(accessKeySecret, method, uri string,
 	headers map[string]string) (digest string, err error) {
 	var contentMD5, contentType, date, canoHeaders, canoResource string
 	var slsHeaderKeys sort.StringSlice
@@ -94,7 +94,7 @@ func signature(project *LogProject, method, uri string,
 		canoResource
 
 	// Signature = base64(hmac-sha1(UTF8-Encoding-Of(SignString)，AccessKeySecret))
-	mac := hmac.New(sha1.New, []byte(project.AccessKeySecret))
+	mac := hmac.New(sha1.New, []byte(accessKeySecret))
 	_, err = mac.Write([]byte(signStr))
 	if err != nil {
 		return

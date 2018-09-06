@@ -14,18 +14,18 @@ func main() {
 
 	fmt.Println("loghub sample begin")
 	logstore_name := "test"
-	util.Project.DeleteLogStore(logstore_name)
+	util.Client.DeleteLogStore(util.ProjectName, logstore_name)
 	time.Sleep(15 * 1000 * time.Millisecond)
-	err := util.Project.CreateLogStore(logstore_name, 1, 2)
+	err := util.Client.CreateLogStore(util.ProjectName, logstore_name, 1, 2, true, 16)
 	if err != nil {
-		fmt.Printf("CreateLogStore fail, err: ", err)
+		fmt.Printf("CreateLogStore fail, err: %s", err)
 		return
 	}
 	time.Sleep(15 * 1000 * time.Millisecond)
 	fmt.Println("CreateLogStore success")
-	logstore, err := util.Project.GetLogStore(logstore_name)
+	logstore, err := util.Client.GetLogStore(util.ProjectName, logstore_name)
 	if err != nil {
-		fmt.Printf("GetLogStore fail, err: ", err)
+		fmt.Printf("GetLogStore fail, err: %s", err)
 		return
 	}
 	fmt.Printf("GetLogStore success, name: %s, ttl: %d, shardCount: %d, createTime: %d, lastModifyTime: %d\n", logstore.Name, logstore.TTL, logstore.ShardCount, logstore.CreateTime, logstore.LastModifyTime)
@@ -42,7 +42,6 @@ func main() {
 		},
 	}
 	index := sls.Index{
-		TTL:  7,
 		Keys: indexKeys,
 		Line: &sls.IndexLine{
 			Token:         []string{",", ":", " "},
@@ -51,9 +50,9 @@ func main() {
 			ExcludeKeys:   []string{},
 		},
 	}
-	err = logstore.CreateIndex(index)
+	err = util.Client.CreateIndex(util.ProjectName, logstore_name, index)
 	if err != nil {
-		fmt.Printf("CreateIndex fail, err: ", err)
+		fmt.Printf("CreateIndex fail, err: %s", err)
 		return
 	}
 	fmt.Println("CreateIndex success")
@@ -90,7 +89,7 @@ func main() {
 			Logs:   logs,
 		}
 		// PutLogs API Ref: https://intl.aliyun.com/help/doc-detail/29026.htm
-		err = logstore.PutLogs(loggroup)
+		err = util.Client.PutLogs(util.ProjectName, logstore_name, loggroup)
 		if err == nil {
 			fmt.Println("PutLogs success")
 		} else {
@@ -104,7 +103,7 @@ func main() {
 	totalCount := int64(0)
 	for {
 		// GetHistograms API Ref: https://intl.aliyun.com/help/doc-detail/29030.htm
-		ghResp, err := logstore.GetHistograms("", int64(begin_time), int64(end_time), "col_0 > 1000000")
+		ghResp, err := util.Client.GetHistograms(util.ProjectName, logstore_name, "", int64(begin_time), int64(end_time), "col_0 > 1000000")
 		if err != nil {
 			fmt.Printf("GetHistograms fail, err: %v\n", err)
 			time.Sleep(10 * time.Millisecond)
@@ -120,7 +119,7 @@ func main() {
 	// get logs repeatedly with (offset, lines) parameters to get complete result
 	for offset < totalCount {
 		// GetLogs API Ref: https://intl.aliyun.com/help/doc-detail/29029.htm
-		glResp, err := logstore.GetLogs("", int64(begin_time), int64(end_time), "col_0 > 1000000", 100, offset, false)
+		glResp, err := util.Client.GetLogs(util.ProjectName, logstore_name, "", int64(begin_time), int64(end_time), "col_0 > 1000000", 100, offset, false)
 		if err != nil {
 			fmt.Printf("GetLogs fail, err: %v\n", err)
 			time.Sleep(10 * time.Millisecond)

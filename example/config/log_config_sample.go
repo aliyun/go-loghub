@@ -57,7 +57,7 @@ func main() {
 }
 
 func checkConfigExist(confName string) (exist bool, err error) {
-	exist, err = util.Project.CheckConfigExist(confName)
+	exist, err = util.Client.CheckConfigExist(util.ProjectName, confName)
 	if err != nil {
 		return false, err
 	}
@@ -65,7 +65,7 @@ func checkConfigExist(confName string) (exist bool, err error) {
 }
 
 func deleteConfig(confName string) (err error) {
-	err = util.Project.DeleteConfig(confName)
+	err = util.Client.DeleteConfig(util.ProjectName, confName)
 	if err != nil {
 		return err
 	}
@@ -73,16 +73,17 @@ func deleteConfig(confName string) (err error) {
 }
 
 func updateConfig(configName string) (err error) {
-	config, _ := util.Project.GetConfig(configName)
-	config.InputDetail.FilePattern = "*.log"
-	err = util.Project.UpdateConfig(config)
+	config, _ := util.Client.GetConfig(util.ProjectName, configName)
+	inputDetail, _ := sls.ConvertToInputDetail(config.InputDetail)
+	inputDetail.FilePattern = "*.log"
+	err = util.Client.UpdateConfig(util.ProjectName, config)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func getConfig(configName string) (err error) {
-	_, err = util.Project.GetConfig(configName)
+	_, err = util.Client.GetConfig(util.ProjectName, configName)
 	if err != nil {
 		return err
 	}
@@ -100,8 +101,6 @@ func createConfig(configName string, projectName string, logstore string, servic
 		LogBeginRegex: ".*",   // 日志首行特征
 		Regex:         "(.*)", // 日志对提取正则表达式
 		Keys:          keys,
-		FilterKeys:    make([]string, 1),
-		FilterRegex:   make([]string, 1),
 	}
 	outputDetail := sls.OutputDetail{
 		ProjectName:  projectName,
@@ -114,7 +113,7 @@ func createConfig(configName string, projectName string, logstore string, servic
 		InputDetail:  inputDetail,
 		OutputDetail: outputDetail,
 	}
-	err = util.Project.CreateConfig(config)
+	err = util.Client.CreateConfig(util.ProjectName, config)
 	if err != nil {
 		return err
 	}

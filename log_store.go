@@ -2,7 +2,6 @@ package sls
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,23 +15,17 @@ import (
 	"time"
 )
 
-// compress type
-const (
-	Compress_LZ4  = iota // 0
-	Compress_None        // 1
-	Compress_Max         // max compress type(just for filter invalid compress type)
-)
-
-var InvalidCompressError = errors.New("Invalid Compress Type")
+// this file is deprecated and no maintenance
+// see client_logstore.go
 
 // LogStore defines LogStore struct
 type LogStore struct {
 	Name       string `json:"logstoreName"`
-	TTL        int
-	ShardCount int
+	TTL        int    `json:"ttl"`
+	ShardCount int    `json:"shardCount"`
 
-	CreateTime     uint32
-	LastModifyTime uint32
+	CreateTime     uint32 `json:"createTime,omitempty"`
+	LastModifyTime uint32 `json:"lastModifyTime,omitempty"`
 
 	project            *LogProject
 	putLogCompressType int
@@ -40,7 +33,11 @@ type LogStore struct {
 
 // Shard defines shard struct
 type Shard struct {
-	ShardID int `json:"shardID"`
+	ShardID           int    `json:"shardID"`
+	Status            string `json:"status"`
+	InclusiveBeginKey string `json:"inclusiveBeginKey"`
+	ExclusiveBeginKey string `json:"exclusiveEndKey"`
+	CreateTime        int    `json:"createTime"`
 }
 
 // SetPutLogCompressType set put log's compress type, default lz4
@@ -53,14 +50,14 @@ func (s *LogStore) SetPutLogCompressType(compressType int) error {
 }
 
 // ListShards returns shard id list of this logstore.
-func (s *LogStore) ListShards() (shardIDs []int, err error) {
+func (s *LogStore) ListShards() (shardIDs []*Shard, err error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 	}
 	uri := fmt.Sprintf("/logstores/%v/shards", s.Name)
 	r, err := request(s.project, "GET", uri, h, nil)
 	if err != nil {
-		return nil, NewClientError(err.Error())
+		return nil, NewClientError(err)
 	}
 	defer r.Body.Close()
 	buf, _ := ioutil.ReadAll(r.Body)
@@ -71,11 +68,8 @@ func (s *LogStore) ListShards() (shardIDs []int, err error) {
 	}
 
 	var shards []*Shard
-	json.Unmarshal(buf, &shards)
-	for _, v := range shards {
-		shardIDs = append(shardIDs, v.ShardID)
-	}
-	return shardIDs, nil
+	err = json.Unmarshal(buf, &shards)
+	return shards, err
 }
 
 func (s *LogStore) CreateConsumerGroup(consumerGroup string, timeout time.Duration, order bool) (err error) {
@@ -190,22 +184,78 @@ func copyIncompressible(src, dst []byte) (int, error) {
 	} else {
 		dst[di] = 0xF0
 		if di++; di == dn {
-			return di, lz4.ErrShortBuffer
+			return di, nil
 		}
 		lLen -= 0xF
 		for ; lLen >= 0xFF; lLen -= 0xFF {
 			dst[di] = 0xFF
 			if di++; di == dn {
-				return di, lz4.ErrShortBuffer
+				return di, nil
 			}
 		}
 		dst[di] = byte(lLen)
 	}
 	if di++; di+len(src) > dn {
-		return di, lz4.ErrShortBuffer
+		return di, nil
 	}
 	di += copy(dst[di:], src)
 	return di, nil
+}
+
+// PutRawLog put raw log data to log service, no marshal
+func (s *LogStore) PutRawLog(rawLogData []byte) (err error) {
+	if len(rawLogData) == 0 {
+		// empty log group
+		return nil
+	}
+
+	var out []byte
+	var h map[string]string
+	var outLen int
+	switch s.putLogCompressType {
+	case Compress_LZ4:
+		// Compresse body with lz4
+		out = make([]byte, lz4.CompressBlockBound(len(rawLogData)))
+		var hashTable [1 << 16]int
+		n, err := lz4.CompressBlock(rawLogData, out, hashTable[:])
+		if err != nil {
+			return NewClientError(err)
+		}
+		// copy incompressible data as lz4 format
+		if n == 0 {
+			n, _ = copyIncompressible(rawLogData, out)
+		}
+
+		h = map[string]string{
+			"x-log-compresstype": "lz4",
+			"x-log-bodyrawsize":  strconv.Itoa(len(rawLogData)),
+			"Content-Type":       "application/x-protobuf",
+		}
+		outLen = n
+		break
+	case Compress_None:
+		// no compress
+		out = rawLogData
+		h = map[string]string{
+			"x-log-bodyrawsize": strconv.Itoa(len(rawLogData)),
+			"Content-Type":      "application/x-protobuf",
+		}
+		outLen = len(out)
+	}
+
+	uri := fmt.Sprintf("/logstores/%v", s.Name)
+	r, err := request(s.project, "POST", uri, h, out[:outLen])
+	if err != nil {
+		return NewClientError(err)
+	}
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+	if r.StatusCode != http.StatusOK {
+		err := new(Error)
+		json.Unmarshal(body, err)
+		return err
+	}
+	return nil
 }
 
 // PutLogs put logs into logstore.
@@ -218,7 +268,7 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 
 	body, err := proto.Marshal(lg)
 	if err != nil {
-		return NewClientError(err.Error())
+		return NewClientError(err)
 	}
 
 	var out []byte
@@ -228,9 +278,10 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 	case Compress_LZ4:
 		// Compresse body with lz4
 		out = make([]byte, lz4.CompressBlockBound(len(body)))
-		n, err := lz4.CompressBlock(body, out, 0)
+		var hashTable [1 << 16]int
+		n, err := lz4.CompressBlock(body, out, hashTable[:])
 		if err != nil {
-			return NewClientError(err.Error())
+			return NewClientError(err)
 		}
 		// copy incompressible data as lz4 format
 		if n == 0 {
@@ -257,7 +308,74 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 	uri := fmt.Sprintf("/logstores/%v", s.Name)
 	r, err := request(s.project, "POST", uri, h, out[:outLen])
 	if err != nil {
-		return NewClientError(err.Error())
+		return NewClientError(err)
+	}
+	defer r.Body.Close()
+	body, _ = ioutil.ReadAll(r.Body)
+	if r.StatusCode != http.StatusOK {
+		err := new(Error)
+		json.Unmarshal(body, err)
+		return err
+	}
+	return nil
+}
+
+// PostLogStoreLogs put logs into Shard logstore by hashKey.
+// The callers should transform user logs into LogGroup.
+func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string) (err error) {
+	if len(lg.Logs) == 0 {
+		// empty log group or empty hashkey
+		return nil
+	}
+
+	if hashKey == nil || *hashKey == "" {
+		// empty hash call PutLogs
+		return s.PutLogs(lg)
+	}
+
+	body, err := proto.Marshal(lg)
+	if err != nil {
+		return NewClientError(err)
+	}
+
+	var out []byte
+	var h map[string]string
+	var outLen int
+	switch s.putLogCompressType {
+	case Compress_LZ4:
+		// Compresse body with lz4
+		out = make([]byte, lz4.CompressBlockBound(len(body)))
+		var hashTable [1 << 16]int
+		n, err := lz4.CompressBlock(body, out, hashTable[:])
+		if err != nil {
+			return NewClientError(err)
+		}
+		// copy incompressible data as lz4 format
+		if n == 0 {
+			n, _ = copyIncompressible(body, out)
+		}
+
+		h = map[string]string{
+			"x-log-compresstype": "lz4",
+			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
+			"Content-Type":       "application/x-protobuf",
+		}
+		outLen = n
+		break
+	case Compress_None:
+		// no compress
+		out = body
+		h = map[string]string{
+			"x-log-bodyrawsize": strconv.Itoa(len(body)),
+			"Content-Type":      "application/x-protobuf",
+		}
+		outLen = len(out)
+	}
+
+	uri := fmt.Sprintf("/logstores/%v/shards/route?key=%v", s.Name, *hashKey)
+	r, err := request(s.project, "POST", uri, h, out[:outLen])
+	if err != nil {
+		return NewClientError(err)
 	}
 	defer r.Body.Close()
 	body, _ = ioutil.ReadAll(r.Body)
@@ -271,7 +389,7 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 
 // GetCursor gets log cursor of one shard specified by shardId.
 // The from can be in three form: a) unix timestamp in seccond, b) "begin", c) "end".
-// For more detail please read: http://gitlab.alibaba-inc.com/sls/doc/blob/master/api/shard.md#logstore
+// For more detail please read: https://help.aliyun.com/document_detail/29024.html
 func (s *LogStore) GetCursor(shardID int, from string) (cursor string, err error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
@@ -390,7 +508,7 @@ func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 	out = make([]byte, bodyRawSize)
 	if bodyRawSize != 0 {
 		len := 0
-		if len, err = lz4.UncompressBlock(buf, out, 0); err != nil || len != bodyRawSize {
+		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != bodyRawSize {
 			return
 		}
 	}
@@ -412,6 +530,7 @@ func LogsBytesDecode(data []byte) (gl *LogGroupList, err error) {
 // PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next cursor can be used to read logs at next time.
+// @note if you want to pull logs continuous, set endCursor = ""
 func (s *LogStore) PullLogs(shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error) {
 
@@ -440,7 +559,7 @@ func (s *LogStore) GetHistograms(topic string, from int64, to int64, queryExp st
 
 	r, err := request(s.project, "GET", uri, h, nil)
 	if err != nil {
-		return nil, NewClientError(err.Error())
+		return nil, NewClientError(err)
 	}
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
@@ -492,7 +611,7 @@ func (s *LogStore) GetLogs(topic string, from int64, to int64, queryExp string,
 
 	r, err := request(s.project, "GET", uri, h, nil)
 	if err != nil {
-		return nil, NewClientError(err.Error())
+		return nil, NewClientError(err)
 	}
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)

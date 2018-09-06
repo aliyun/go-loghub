@@ -1,14 +1,10 @@
 language: go
 
 go:
- - 1.6
+ - "1.8"
 
 install:
  - go get github.com/mattn/goveralls
- - go get github.com/gogo/protobuf/proto
- - go get github.com/cloudflare/golz4
- - go get github.com/golang/glog
- - go get github.com/stretchr/testify/suite
 
 script:
  - $HOME/gopath/bin/goveralls -service=travis-ci

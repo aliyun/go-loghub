@@ -1,8 +1,8 @@
 package sls
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -130,24 +130,34 @@ func (s *LogstoreTestSuite) TestPullLogs() {
 func (s *LogstoreTestSuite) TestGetLogs() {
 	idx, err := s.Logstore.GetIndex()
 	if err != nil {
-		fmt.Printf("GetIndex fail, err: %v, idx: %v\n", err, idx)
-		return
-	}
-	fmt.Printf("GetIndex success, idx: %v\n", idx)
-	idxConf := Index {
-			TTL: 7,
-			Keys: map[string]IndexKey {
-			},
-			Line: &IndexLine {
-				Token: []string{",", ":", " "},
-				CaseSensitive: false,
-				IncludeKeys: []string{},
-				ExcludeKeys: []string{},
-			},
+		returnFlag := true
+		if clientErr, ok := err.(*Error); ok {
+			if clientErr.Code == "IndexConfigNotExist" {
+				fmt.Printf("GetIndex success, no index config \n")
+				returnFlag = false
+			}
 		}
-	s.Logstore.CreateIndex(idxConf)
-	time.Sleep(1 * 1000 * time.Millisecond)
-	begin_time := uint32(time.Now().Unix())
+		if returnFlag {
+			fmt.Printf("GetIndex fail, err: %v, idx: %v\n", err, idx)
+			return
+		}
+	} else {
+		fmt.Printf("GetIndex success, idx: %v\n", idx)
+	}
+	idxConf := Index{
+		Keys: map[string]IndexKey{},
+		Line: &IndexLine{
+			Token:         []string{",", ":", " "},
+			CaseSensitive: false,
+			IncludeKeys:   []string{},
+			ExcludeKeys:   []string{},
+		},
+	}
+	err = s.Logstore.CreateIndex(idxConf)
+	fmt.Print(err)
+
+	beginTime := uint32(time.Now().Unix())
+	time.Sleep(10 * 1000 * time.Millisecond)
 	c := &LogContent{
 		Key:   proto.String("error code"),
 		Value: proto.String("InternalServerError"),
@@ -170,11 +180,15 @@ func (s *LogstoreTestSuite) TestGetLogs() {
 	s.Nil(putErr)
 
 	time.Sleep(5 * 1000 * time.Millisecond)
+	endTime := uint32(time.Now().Unix())
 
-	hResp, hErr := s.Logstore.GetHistograms("", int64(begin_time), int64(begin_time + 2), "InternalServerError")
+	hResp, hErr := s.Logstore.GetHistograms("", int64(beginTime), int64(endTime), "InternalServerError")
 	s.Nil(hErr)
+	if hErr != nil {
+		fmt.Printf("Get log error %v \n", hErr)
+	}
 	s.Equal(hResp.Count, int64(1))
-	lResp, lErr := s.Logstore.GetLogs("", int64(begin_time), int64(begin_time + 2), "InternalServerError", 100, 0, false)
+	lResp, lErr := s.Logstore.GetLogs("", int64(beginTime), int64(endTime), "InternalServerError", 100, 0, false)
 	s.Nil(lErr)
 	s.Equal(lResp.Count, int64(1))
 }
@@ -183,7 +197,9 @@ func (s *LogstoreTestSuite) TestLogstore() {
 	logstoreName := "github-test"
 	err := s.Project.DeleteLogStore(logstoreName)
 	time.Sleep(5 * 1000 * time.Millisecond)
-	err = s.Project.CreateLogStore(logstoreName, 14, 2)
+
+	err = s.Project.CreateLogStore(logstoreName, 14, 2, true, 16)
+
 	s.Nil(err)
 	time.Sleep(10 * 1000 * time.Millisecond)
 	err = s.Project.UpdateLogStore(logstoreName, 7, 2)

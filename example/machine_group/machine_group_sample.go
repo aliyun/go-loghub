@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// machine group example
-	projectName := util.Project.Name
+	project := util.ProjectName
 	logstore := "test-logstore"
 	testConf := "test-conf"
 	testMachineGroup := "test-mg"
@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 	if exist {
-		util.Project.DeleteMachineGroup(testMachineGroup)
+		util.Client.DeleteMachineGroup(project, testMachineGroup)
 	}
 
 	err = createMachineGroup(testMachineGroup)
@@ -49,16 +49,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	exist, err = util.Project.CheckConfigExist(testConf)
+	exist, err = util.Client.CheckConfigExist(project, testConf)
 	if err != nil {
 		fmt.Println("check config exist fail:", err)
 		os.Exit(1)
 	}
 	if exist {
-		util.Project.DeleteConfig(testConf)
+		util.Client.DeleteConfig(project, testConf)
 	}
 
-	err = createLogConfig(testConf, projectName, logstore, testService)
+	err = createLogConfig(testConf, project, logstore, testService)
 	if err != nil {
 		fmt.Println("create config fail:")
 		fmt.Println(err)
@@ -99,14 +99,14 @@ func main() {
 }
 
 func applyConfToMachineGroup(confName string, mgname string) (err error) {
-	err = util.Project.ApplyConfigToMachineGroup(confName, mgname)
+	err = util.Client.ApplyConfigToMachineGroup(util.ProjectName, confName, mgname)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func createLogConfig(configName string, projectName, logstore string, serviceName string) (err error) {
+func createLogConfig(configName string, project, logstore string, serviceName string) (err error) {
 	// 日志所在的父目录
 	logPath := "/var/log/lambda/" + serviceName
 	// 日志文件的pattern，如functionName.LOG
@@ -141,7 +141,7 @@ func createLogConfig(configName string, projectName, logstore string, serviceNam
 		TopicFormat:   topicFormat,
 	}
 	outputDetail := sls.OutputDetail{
-		ProjectName:  projectName,
+		ProjectName:  project,
 		LogStoreName: logstore,
 	}
 	config := &sls.LogConfig{
@@ -151,7 +151,7 @@ func createLogConfig(configName string, projectName, logstore string, serviceNam
 		InputDetail:  inputDetail,
 		OutputDetail: outputDetail,
 	}
-	err = util.Project.CreateConfig(config)
+	err = util.Client.CreateConfig(project, config)
 	if err != nil {
 		return err
 	}
@@ -159,14 +159,14 @@ func createLogConfig(configName string, projectName, logstore string, serviceNam
 }
 
 func checkMachineGroupExist(groupName string) (exist bool, err error) {
-	exist, err = util.Project.CheckMachineGroupExist(groupName)
+	exist, err = util.Client.CheckMachineGroupExist(util.ProjectName, groupName)
 	if err != nil {
 		return false, err
 	}
 	return exist, nil
 }
 func getMachineGroup(groupName string) (err error) {
-	_, err = util.Project.GetMachineGroup(groupName)
+	_, err = util.Client.GetMachineGroup(util.ProjectName, groupName)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func getMachineGroup(groupName string) (err error) {
 }
 
 func deleteMachineGroup(groupName string) (err error) {
-	err = util.Project.DeleteMachineGroup(groupName)
+	err = util.Client.DeleteMachineGroup(util.ProjectName, groupName)
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func createMachineGroup(groupName string) (err error) {
 		MachineIDList: machineList,
 		Attribute:     attribute,
 	}
-	err = util.Project.CreateMachineGroup(machineGroup)
+	err = util.Client.CreateMachineGroup(util.ProjectName, machineGroup)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func createMachineGroup(groupName string) (err error) {
 }
 
 func deleteConfig(confName string) (err error) {
-	err = util.Project.DeleteConfig(confName)
+	err = util.Client.DeleteConfig(util.ProjectName, confName)
 	if err != nil {
 		return err
 	}

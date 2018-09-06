@@ -40,6 +40,7 @@ type IndexKey struct {
 	Type          string   `json:"type"` // text, long, double
 	DocValue      bool     `json:"doc_value,omitempty"`
 	Alias         string   `json:"alias,omitempty"`
+	Chn           bool     `json:"chn"` // parse chinese or not
 }
 
 type IndexLine struct {
@@ -47,11 +48,21 @@ type IndexLine struct {
 	CaseSensitive bool     `json:"caseSensitive"`
 	IncludeKeys   []string `json:"include_keys,omitempty"`
 	ExcludeKeys   []string `json:"exclude_keys,omitempty"`
+	Chn           bool     `json:"chn"` // parse chinese or not
 }
 
 // Index is an index config for a log store.
 type Index struct {
-	TTL  int                 `json:"ttl"`
 	Keys map[string]IndexKey `json:"keys,omitempty"`
 	Line *IndexLine          `json:"line,omitempty"`
+}
+
+// CreateDefaultIndex return a full text index config
+func CreateDefaultIndex() *Index {
+	return &Index{
+		Line: &IndexLine{
+			Token:         []string{" ", "\n", "\t", "\r", ",", ";", "[", "]", "{", "}", "(", ")", "&", "^", "*", "#", "@", "~", "=", "<", ">", "/", "\\", "?", ":", "'", "\""},
+			CaseSensitive: false,
+		},
+	}
 }

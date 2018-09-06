@@ -25,7 +25,7 @@ func TestSignatureGet(t *testing.T) {
 		"Date":                  "Mon, 3 Jan 2010 08:33:47 GMT",
 	}
 	digest := "Rwm6cTKzoti4HWoe+GKcb6Kv07E="
-	s, err := signature(project, "GET", "/logstores", h)
+	s, err := signature(project.AccessKeySecret, "GET", "/logstores", h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestSignaturePost(t *testing.T) {
 	}
 
 	digest := "87xQWqFaOSewqRIma8kPjGYlXHc="
-	s, err := signature(project, "GET", "/logstores/app_log", h)
+	s, err := signature(project.AccessKeySecret, "GET", "/logstores/app_log", h)
 	if err != nil {
 		t.Fatal(err)
 	}

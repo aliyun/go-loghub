@@ -41,7 +41,7 @@ type IndexKey struct {
 	DocValue      bool                `json:"doc_value,omitempty"`
 	Alias         string              `json:"alias,omitempty"`
 	Chn           bool                `json:"chn"` // parse chinese or not
-	JSONKeys      map[string]IndexKey `json:"json_keys"`
+	JSONKeys      map[string]IndexKey `json:"json_keys,omitempty"`
 }
 
 type IndexLine struct {

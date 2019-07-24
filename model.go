@@ -35,12 +35,13 @@ func (resp *GetLogsResponse) IsComplete() bool {
 
 // IndexKey ...
 type IndexKey struct {
-	Token         []string `json:"token"` // tokens that split the log line.
-	CaseSensitive bool     `json:"caseSensitive"`
-	Type          string   `json:"type"` // text, long, double
-	DocValue      bool     `json:"doc_value,omitempty"`
-	Alias         string   `json:"alias,omitempty"`
-	Chn           bool     `json:"chn"` // parse chinese or not
+	Token         []string            `json:"token"` // tokens that split the log line.
+	CaseSensitive bool                `json:"caseSensitive"`
+	Type          string              `json:"type"` // text, long, double
+	DocValue      bool                `json:"doc_value,omitempty"`
+	Alias         string              `json:"alias,omitempty"`
+	Chn           bool                `json:"chn"` // parse chinese or not
+	JSONKeys      map[string]IndexKey `json:"json_keys"`
 }
 
 type IndexLine struct {

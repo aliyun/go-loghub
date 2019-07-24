@@ -44,11 +44,12 @@ type IndexKey struct {
 }
 
 type IndexLine struct {
-	Token         []string `json:"token"`
-	CaseSensitive bool     `json:"caseSensitive"`
-	IncludeKeys   []string `json:"include_keys,omitempty"`
-	ExcludeKeys   []string `json:"exclude_keys,omitempty"`
-	Chn           bool     `json:"chn"` // parse chinese or not
+	Token         []string            `json:"token"`
+	CaseSensitive bool                `json:"caseSensitive"`
+	IncludeKeys   []string            `json:"include_keys,omitempty"`
+	ExcludeKeys   []string            `json:"exclude_keys,omitempty"`
+	Chn           bool                `json:"chn"` // parse chinese or not
+	JSONKey       map[string]IndexKey `json:"json_keys,omitempty"`
 }
 
 // Index is an index config for a log store.

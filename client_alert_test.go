@@ -2,11 +2,12 @@ package sls
 
 import (
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/golang/glog"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestAlert(t *testing.T) {

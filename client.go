@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // GlobalForceUsingHTTP if GlobalForceUsingHTTP is true, then all request will use HTTP(ignore LogProject's UsingHTTP flag)
@@ -76,6 +77,8 @@ type Client struct {
 	AccessKeySecret string
 	SecurityToken   string
 	UserAgent       string // default defaultLogUserAgent
+	RequestTimeOut  time.Duration
+	RetryTimeOut 	time.Duration
 
 	accessKeyLock sync.RWMutex
 }
@@ -86,6 +89,13 @@ func convert(c *Client, projName string) *LogProject {
 	p, _ := NewLogProject(projName, c.Endpoint, c.AccessKeyID, c.AccessKeySecret)
 	p.SecurityToken = c.SecurityToken
 	p.UserAgent = c.UserAgent
+	if c.RequestTimeOut != time.Duration(0) {
+		p.WithRetryTimeout(c.RequestTimeOut)
+	}
+	if c.RetryTimeOut != time.Duration(0) {
+		p.WithRetryTimeout(c.RetryTimeOut)
+	}
+
 	return p
 }
 

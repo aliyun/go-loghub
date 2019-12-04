@@ -3,6 +3,7 @@ package producer
 import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+
 	"sync"
 	"time"
 )
@@ -62,7 +63,7 @@ func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) 
 			return true
 		})
 		if mapCount == 0 {
-			level.Debug(mover.logger).Log("msg", "No data time in map waiting for user configured RemainMs parameter values")
+			level.Debug(mover.logger).Log("msg", "No cached data in producer, waiting for new data to be written")
 			sleepMs = config.LingerMs
 		}
 

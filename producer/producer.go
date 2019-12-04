@@ -1,10 +1,11 @@
 package producer
 
 import (
-	"errors"
 	"github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,10 +14,12 @@ import (
 const (
 	TimeoutExecption      = "TimeoutExecption"
 	IllegalStateException = "IllegalStateException"
+	Project 			  = "project"
 )
 
 var producerLogGroupSize int64
 var ioLock sync.RWMutex
+var clientGroup *sync.Map
 
 type Producer struct {
 	producerConfig        *ProducerConfig
@@ -33,11 +36,7 @@ type Producer struct {
 
 func InitProducer(producerConfig *ProducerConfig) *Producer {
 	logger := logConfig(producerConfig)
-	client := &sls.Client{
-		Endpoint:        producerConfig.Endpoint,
-		AccessKeyID:     producerConfig.AccessKeyID,
-		AccessKeySecret: producerConfig.AccessKeySecret,
-	}
+	clientGroup = &sync.Map{}
 	finalProducerConfig := validateProducerConfig(producerConfig)
 	retryQueue := initRetryQueue()
 	errorStatusMap := func() map[int]*string {
@@ -47,7 +46,8 @@ func InitProducer(producerConfig *ProducerConfig) *Producer {
 		}
 		return errorCodeMap
 	}()
-	ioWorker := initIoWorker(client, retryQueue, logger, finalProducerConfig.MaxIoWorkerCount, errorStatusMap)
+	PutNewProducerConfig(producerConfig)
+	ioWorker := initIoWorker(retryQueue, logger, finalProducerConfig.MaxIoWorkerCount, errorStatusMap)
 	threadPool := initIoThreadPool(ioWorker, logger)
 	logAccumulator := initLogAccumulator(finalProducerConfig, ioWorker, logger, threadPool)
 	mover := initMover(logAccumulator, retryQueue, ioWorker, logger, threadPool)
@@ -270,4 +270,23 @@ func (producer *Producer) sendCloseProdcerSignal() {
 	producer.mover.moverShutDownFlag = true
 	producer.logAccumulator.shutDownFlag = true
 	producer.mover.ioWorker.retryQueueShutDownFlag = true
+}
+
+func PutNewProducerConfig(producerConfig *ProducerConfig) {
+	client := &sls.Client{
+		Endpoint:        producerConfig.Endpoint,
+		AccessKeyID:     producerConfig.AccessKeyID,
+		AccessKeySecret: producerConfig.AccessKeySecret,
+		SecurityToken:   producerConfig.SecurityToken,
+	}
+	clientGroup.Store(Project, client)
+}
+
+func getProducerClient() *sls.Client {
+	 if value, ok :=clientGroup.Load(Project); ok == true {
+		if client, ok := value.(*sls.Client); ok {
+			return client
+		}
+	 }
+	 return nil
 }

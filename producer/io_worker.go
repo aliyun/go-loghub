@@ -17,7 +17,6 @@ type CallBack interface {
 }
 
 type IoWorker struct {
-	client                 *sls.Client
 	retryQueue             *RetryQueue
 	taskCount              int64
 	retryQueueShutDownFlag bool
@@ -26,9 +25,8 @@ type IoWorker struct {
 	noRetryStatusCodeMap   map[int]*string
 }
 
-func initIoWorker(client *sls.Client, retryQueue *RetryQueue, logger log.Logger, maxIoWorkerCount int64, errorStatusMap map[int]*string) *IoWorker {
+func initIoWorker(retryQueue *RetryQueue, logger log.Logger, maxIoWorkerCount int64, errorStatusMap map[int]*string) *IoWorker {
 	return &IoWorker{
-		client:                 client,
 		retryQueue:             retryQueue,
 		taskCount:              0,
 		retryQueueShutDownFlag: false,
@@ -43,10 +41,14 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch, ioWorkerWai
 	defer ioWorker.closeSendTask(ioWorkerWaitGroup)
 	var err error
 	atomic.AddInt64(&ioWorker.taskCount, 1)
+	client := getProducerClient()
+	if client == nil {
+		level.Error(ioWorker.logger).Log("msg", "get log client error when send data to server")
+	}
 	if producerBatch.shardHash != nil {
-		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
+		err = client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
 	} else {
-		err = ioWorker.client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
+		err = client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	}
 	if err == nil {
 		level.Debug(ioWorker.logger).Log("msg", "sendToServer suecssed,Execute successful callback function")

@@ -25,6 +25,7 @@ type ProducerConfig struct {
 	AccessKeyID           string
 	AccessKeySecret       string
 	NoRetryStatusCodeList []int
+	SecurityToken         string
 }
 
 func GetDefaultProducerConfig() *ProducerConfig {

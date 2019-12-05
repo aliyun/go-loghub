@@ -1,14 +1,14 @@
 package producer
 
 import (
-	"github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-
 	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 const (
@@ -19,7 +19,9 @@ const (
 
 var producerLogGroupSize int64
 var ioLock sync.RWMutex
-var clientGroup *sync.Map
+var clientLock sync.RWMutex
+var client *sls.Client
+
 
 type Producer struct {
 	producerConfig        *ProducerConfig
@@ -36,7 +38,6 @@ type Producer struct {
 
 func InitProducer(producerConfig *ProducerConfig) *Producer {
 	logger := logConfig(producerConfig)
-	clientGroup = &sync.Map{}
 	finalProducerConfig := validateProducerConfig(producerConfig)
 	retryQueue := initRetryQueue()
 	errorStatusMap := func() map[int]*string {
@@ -273,20 +274,19 @@ func (producer *Producer) sendCloseProdcerSignal() {
 }
 
 func PutNewProducerConfig(producerConfig *ProducerConfig) {
-	client := &sls.Client{
+	defer clientLock.Unlock()
+	clientLock.Lock()
+	client = &sls.Client{
 		Endpoint:        producerConfig.Endpoint,
 		AccessKeyID:     producerConfig.AccessKeyID,
 		AccessKeySecret: producerConfig.AccessKeySecret,
 		SecurityToken:   producerConfig.SecurityToken,
 	}
-	clientGroup.Store(Project, client)
+
 }
 
 func getProducerClient() *sls.Client {
-	 if value, ok :=clientGroup.Load(Project); ok == true {
-		if client, ok := value.(*sls.Client); ok {
-			return client
-		}
-	 }
-	 return nil
+	defer clientLock.RUnlock()
+	clientLock.RLock()
+	return client
 }

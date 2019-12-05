@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -41,14 +41,15 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch, ioWorkerWai
 	defer ioWorker.closeSendTask(ioWorkerWaitGroup)
 	var err error
 	atomic.AddInt64(&ioWorker.taskCount, 1)
-	client := getProducerClient()
-	if client == nil {
+	newClient := getProducerClient()
+	if newClient == nil {
 		level.Error(ioWorker.logger).Log("msg", "get log client error when send data to server")
+		return
 	}
 	if producerBatch.shardHash != nil {
-		err = client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
+		err = newClient.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
 	} else {
-		err = client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
+		err = newClient.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	}
 	if err == nil {
 		level.Debug(ioWorker.logger).Log("msg", "sendToServer suecssed,Execute successful callback function")

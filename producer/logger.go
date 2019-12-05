@@ -1,11 +1,11 @@
 package producer
 
 import (
+	"os"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"gopkg.in/natefinch/lumberjack.v2"
-
-	"os"
 )
 
 func logConfig(producerConfig *ProducerConfig) log.Logger {

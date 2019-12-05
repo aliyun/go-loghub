@@ -134,6 +134,7 @@ func(callback *Callback)Fail(result *producer.Result){
 | AccessKeyID         | String | 账户的AK id。                                                |
 | AccessKeySecret     | String | 账户的AK 密钥。                                              |
 | NoRetryStatusCodeList  | []int  | 用户配置的不需要重试的错误码列表，当发送日志失败时返回的错误码在列表中，则不会重试。默认包含400，404两个值。                 |
+| SecurityToken       | String | 当使用主账号授权的sts token值进行发送数据的时候需要填入的参数，默认值为空字符串，当不需要使用ststoken时不需要配置该参数 |
 
 ## 关于性能
 

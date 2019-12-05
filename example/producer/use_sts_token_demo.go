@@ -14,7 +14,7 @@ func main() {
 	producerConfig.Endpoint = os.Getenv("Endpoint")
 	producerConfig.AccessKeyID = os.Getenv("AccessKeyID")
 	producerConfig.AccessKeySecret = os.Getenv("AccessKeySecret")
-	producerConfig.SecurityToken = ""
+	producerConfig.SecurityToken = ""  // How not to use ststoken, this parameter can not be configured.
 	producerInstance := producer.InitProducer(producerConfig)
 	ch := make(chan os.Signal)
 	signal.Notify(ch)
@@ -30,6 +30,7 @@ func main() {
 					time.Sleep(10 * time.Second)
 					// note : please configure your correct ste token value.
 					producerConfig.SecurityToken = "your new sts token"
+					// If the ststoken needs to be updated during the program running, please call PutNewProducerConfig function to pass in the new ststoken.
 					producer.PutNewProducerConfig(producerConfig)
 				}
 				// GenerateLog  is producer's function for generating SLS format logs

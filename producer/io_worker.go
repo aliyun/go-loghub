@@ -17,9 +17,9 @@ type CallBack interface {
 }
 
 type IoWorker struct {
+	taskCount              int64
 	client                 *sls.Client
 	retryQueue             *RetryQueue
-	taskCount              int64
 	retryQueueShutDownFlag bool
 	logger                 log.Logger
 	maxIoWorker            chan int64

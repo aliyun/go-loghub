@@ -8,6 +8,7 @@ import (
 )
 
 type ProducerBatch struct {
+	totalDataSize        int64
 	lock                 sync.RWMutex
 	logGroup             *sls.LogGroup
 	logGroupSize         int
@@ -24,7 +25,6 @@ type ProducerBatch struct {
 	shardHash            *string
 	result               *Result
 	maxReservedAttempts  int
-	totalDataSize        int64
 }
 
 func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {

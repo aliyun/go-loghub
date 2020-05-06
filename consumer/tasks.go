@@ -3,7 +3,7 @@ package consumerLibrary
 import (
 	"errors"
 	"fmt"
-	"github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log/level"
 	"time"
 )

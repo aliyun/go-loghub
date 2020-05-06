@@ -14,7 +14,7 @@ API Reference :
 ### LogHub Golang SDK
 
 ```
-go get github.com/aliyun/aliyun-log-go-sdk
+go get github.com/sanallen/aliyun-log-go-sdk
 ```
 
 # Example 

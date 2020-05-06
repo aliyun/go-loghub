@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/aliyun/aliyun-log-go-sdk/example/util"
+	"github.com/sanallen/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk/example/util"
 )
 
 func main() {

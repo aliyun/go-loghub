@@ -1,7 +1,7 @@
 package producer
 
 import (
-	"github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk"
 	"github.com/gogo/protobuf/proto"
 	"reflect"
 	"testing"

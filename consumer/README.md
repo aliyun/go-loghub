@@ -25,7 +25,7 @@ Aliyun LOG Go Consumer Library 是一个易于使用且高度可配置的golang 
 
 ## 安装
 
-请先克隆代码到自己的GOPATH路径下(源码地址：[aliyun-go-consumer-library](https://github.com/aliyun/aliyun-log-go-sdk))，项目使用了vendor工具管理第三方依赖包，所以克隆下来项目以后无需安装任何第三方工具包。
+请先克隆代码到自己的GOPATH路径下(源码地址：[aliyun-go-consumer-library](https://github.com/sanallen/aliyun-log-go-sdk))，项目使用了vendor工具管理第三方依赖包，所以克隆下来项目以后无需安装任何第三方工具包。
 
 ```shell
 git clone git@github.com:aliyun/aliyun-log-go-sdk.git
@@ -90,7 +90,7 @@ if _, ok := <-ch; ok { // 当获取到os停止信号以后，例如ctrl+c触发�
 
 ## 简单样例
 
-为了方便用户可以更快速的上手consumer library 我们提供了两个简单的通过代码操作consumer library的简单样例，请参考[consumer library example](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/example/consumer)
+为了方便用户可以更快速的上手consumer library 我们提供了两个简单的通过代码操作consumer library的简单样例，请参考[consumer library example](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/example/consumer)
 
 ## 问题反馈
-如果您在使用过程中遇到了问题，可以创建 [GitHub Issue](https://github.com/aliyun/aliyun-log-go-sdk/issues) 或者前往阿里云支持中心[提交工单](https://workorder.console.aliyun.com/#/ticket/createIndex)。
+如果您在使用过程中遇到了问题，可以创建 [GitHub Issue](https://github.com/sanallen/aliyun-log-go-sdk/issues) 或者前往阿里云支持中心[提交工单](https://workorder.console.aliyun.com/#/ticket/createIndex)。

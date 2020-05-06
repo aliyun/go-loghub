@@ -1,7 +1,7 @@
 package util
 
 import (
-	sls "github.com/aliyun/aliyun-log-go-sdk"
+	sls "github.com/sanallen/aliyun-log-go-sdk"
 )
 
 // When you use the file under example, please configure the required variables here.

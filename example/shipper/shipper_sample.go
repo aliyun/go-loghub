@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	sls "github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/aliyun/aliyun-log-go-sdk/example/util"
+	sls "github.com/sanallen/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk/example/util"
 )
 
 func main() {

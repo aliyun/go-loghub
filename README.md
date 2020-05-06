@@ -1,6 +1,6 @@
 ## User Guide （中文）
 
-[README  in English](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/README_EN.md)
+[README  in English](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/README_EN.md)
 
 ### 基本介绍
 
@@ -9,26 +9,26 @@
 本项目主要由3个部分组成：
 
 1. 日志服务基础API封装和实现。
-2. Golang Producer Library，用于向日志服务批量发送数据，详情参考[**Aliyun LOG Golang Producer 快速入门**](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer)。
-3. Golang Consumer Library，用于消费日志服务中的数据，详情参考[**Consumer Library**](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/consumer)。
+2. Golang Producer Library，用于向日志服务批量发送数据，详情参考[**Aliyun LOG Golang Producer 快速入门**](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/producer)。
+3. Golang Consumer Library，用于消费日志服务中的数据，详情参考[**Consumer Library**](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/consumer)。
 
 详细API接口以及含义请参考：https://help.aliyun.com/document_detail/29007.html
 
 ### 安装
 
 ```
-go get -u github.com/aliyun/aliyun-log-go-sdk
+go get -u github.com/sanallen/aliyun-log-go-sdk
 ```
 
 
 
 ### 快速入门
 
-**前言:**   所有的使用样例都位于[example](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/example)目录下，使用该目录下的所有样例前，请先在该目录下的[config.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/util/config.go)文件中的**init函数**中配置您的 project, logstore等所需要的配置参数，example目录下的所有样例都会使用config.go文件中配置的参数。
+**前言:**   所有的使用样例都位于[example](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/example)目录下，使用该目录下的所有样例前，请先在该目录下的[config.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/util/config.go)文件中的**init函数**中配置您的 project, logstore等所需要的配置参数，example目录下的所有样例都会使用config.go文件中配置的参数。
 
 1. **创建Client**
 
-   参考 [config.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/util/config.go) 文件
+   参考 [config.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/util/config.go) 文件
 
    ```go
    AccessKeyID = "your ak id"
@@ -39,7 +39,7 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 2. **创建project**
 
-   参考 [log_project.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/project/log_project.go)文件
+   参考 [log_project.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/project/log_project.go)文件
 
    ```go lgo l
    project, err := util.Client.CreateProject(ProjectName,"Project used for testing")
@@ -51,7 +51,7 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 3. **创建logstore**
 
-   参考 [log_logstore.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/logstore/log_logstore.go)
+   参考 [log_logstore.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/logstore/log_logstore.go)
 
    ```go
    err := util.Client.CreateLogStore(ProjectName, LogStoreName,2,2,true,64)
@@ -62,7 +62,7 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 4. **创建索引**
 
-   参考[index_sample](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/index/index_sample.go)
+   参考[index_sample](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/index/index_sample.go)
 
    ```go
    indexKeys := map[string]sls.IndexKey{
@@ -96,9 +96,9 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 5. **写数据**
 
-   参考[put_log.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/loghub/put_log.go)
+   参考[put_log.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/loghub/put_log.go)
 
-   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失。
+   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失。
 
    ```go
    logs := []*sls.Log{}
@@ -142,9 +142,9 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 6.**读数据**
 
-参考[pull_log.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/loghub/pull_log.go)
+参考[pull_log.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/loghub/pull_log.go)
 
-这里展示了使用SDK中原生API接口调用去拉取数据的方式，我们不推荐使用这种方式去读取消费logstore中的数据，推荐使用SDK中 [consumer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/consumer) 消费组去拉取数据，消费组提供自动负载均衡以及失败重试等机制，并且会自动保存拉取断点，再次拉取不会拉取重复数据。
+这里展示了使用SDK中原生API接口调用去拉取数据的方式，我们不推荐使用这种方式去读取消费logstore中的数据，推荐使用SDK中 [consumer](https://github.com/sanallen/aliyun-log-go-sdk/tree/master/consumer) 消费组去拉取数据，消费组提供自动负载均衡以及失败重试等机制，并且会自动保存拉取断点，再次拉取不会拉取重复数据。
 
 ```go
 shards, err := client.ListShards(project, logstore)
@@ -190,7 +190,7 @@ totalLogCount := 0
 
 7. **创建机器组**
 
-   参考 [machine_group_sample.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/machine_group/machine_group_sample.go) 
+   参考 [machine_group_sample.go](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/machine_group/machine_group_sample.go) 
 
 ```go
 attribute := sls.MachinGroupAttribute{
@@ -212,7 +212,7 @@ if err != nil {
 
 8. **创建logtail 采集配置**
 
-   logtail 采集配置，目前通过sdk 支持创建下列几种模式的采集配置，分别为 [完整正则](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_common_regex.go)，[分隔符模式](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_delimiter.go)，[json模式](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_json.go) ，[插件模式](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_plugin.go)，这里展示的完整正则模式的创建。
+   logtail 采集配置，目前通过sdk 支持创建下列几种模式的采集配置，分别为 [完整正则](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_common_regex.go)，[分隔符模式](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_delimiter.go)，[json模式](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_json.go) ，[插件模式](https://github.com/sanallen/aliyun-log-go-sdk/blob/master/example/logtail_config/log_config_plugin.go)，这里展示的完整正则模式的创建。
 
    ```go
    regexConfig := new(sls.RegexConfigInputDetail)

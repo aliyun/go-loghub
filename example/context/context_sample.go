@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	sls "github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/aliyun/aliyun-log-go-sdk/example/util"
+	sls "github.com/sanallen/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk/example/util"
 	"github.com/gogo/protobuf/proto"
 )
 

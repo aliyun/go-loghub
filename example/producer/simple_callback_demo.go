@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/aliyun/aliyun-log-go-sdk/producer"
+	"github.com/sanallen/aliyun-log-go-sdk/producer"
 	"os"
 	"os/signal"
 	"sync"

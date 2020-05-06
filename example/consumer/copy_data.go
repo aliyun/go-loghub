@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/aliyun/aliyun-log-go-sdk/consumer"
+	"github.com/sanallen/aliyun-log-go-sdk"
+	"github.com/sanallen/aliyun-log-go-sdk/consumer"
 	"github.com/go-kit/kit/log/level"
 	"os"
 	"os/signal"

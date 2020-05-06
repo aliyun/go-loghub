@@ -4,43 +4,43 @@
 	"package": [
 		{
 			"checksumSHA1": "Ij8Xl8AyDw3+0+i7KJQySTpOvBQ=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk",
+			"path": "github.com/sanallen/aliyun-log-go-sdk",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "dNhuHQw5I9fmJL7NiVY7HR3SMiU=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/config",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/config",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "IxNjps+6nkydxj3lPil6lmeArpQ=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/etl",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/etl",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "jTL4/QcnwrQ/g02UgdEB3B9/5Sg=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/index",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/index",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "bUpYwKcsAde44mf7/yKVuEn9s9M=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/loghub",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/loghub",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "IgCfemyJgXg3dJCLzKumhG0WJwM=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/machine_group",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/machine_group",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
 		{
 			"checksumSHA1": "OwCX0QoBvIufFARvEn+F4gUrt1w=",
-			"path": "github.com/aliyun/aliyun-log-go-sdk/example/util",
+			"path": "github.com/sanallen/aliyun-log-go-sdk/example/util",
 			"revision": "7663ea59fab7d0c407632ac8a41b890fead33af1",
 			"revisionTime": "2018-07-12T12:36:23Z"
 		},
@@ -161,5 +161,5 @@
 			"revisionTime": "2017-05-31T16:03:50Z"
 		}
 	],
-	"rootPath": "github.com/aliyun/aliyun-log-go-sdk"
+	"rootPath": "github.com/sanallen/aliyun-log-go-sdk"
 }

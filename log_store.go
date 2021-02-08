@@ -358,7 +358,7 @@ func (s *LogStore) GetCursor(shardID int, from string) (cursor string, err error
 
 // GetLogsBytes gets logs binary data from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
-// The nextCursor is the next curosr can be used to read logs at next time.
+// The nextCursor is the next cursor can be used to read logs at next time.
 func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (out []byte, nextCursor string, err error) {
 	h := map[string]string{
@@ -569,6 +569,9 @@ func (s *LogStore) getLogs(topic string, from int64, to int64, queryExp string,
 	}
 
 	return r, body, &GetLogsResponse{
+		MetaResponse: MetaResponse{
+			RequestId: r.Header[RequestIDHeader][0],
+		},
 		Progress: r.Header[ProgressHeader][0],
 		Count:    count,
 		Contents: contents,
@@ -604,7 +607,7 @@ func (s *LogStore) GetLogs(topic string, from int64, to int64, queryExp string,
 
 	rsp, b, logRsp, err := s.getLogs(topic, from, to, queryExp, maxLineNum, offset, reverse)
 	if err == nil && len(b) != 0 {
-		logs := []map[string]string{}
+		var logs []map[string]string
 		err = json.Unmarshal(b, &logs)
 		if err != nil {
 			return nil, NewBadResponseError(string(b), rsp.Header, rsp.StatusCode)

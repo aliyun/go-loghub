@@ -499,7 +499,7 @@ func (s *LogStore) GetHistograms(topic string, from int64, to int64, queryExp st
 		return nil, err
 	}
 
-	histograms := []SingleHistogram{}
+	var histograms []SingleHistogram
 	err = json.Unmarshal(body, &histograms)
 	if err != nil {
 		return nil, NewBadResponseError(string(body), r.Header, r.StatusCode)
@@ -510,6 +510,9 @@ func (s *LogStore) GetHistograms(topic string, from int64, to int64, queryExp st
 		return nil, err
 	}
 	getHistogramsResponse := GetHistogramsResponse{
+		MetaResponse: MetaResponse{
+			RequestId: r.Header.Get(RequestIDHeader),
+		},
 		Progress:   r.Header[ProgressHeader][0],
 		Count:      count,
 		Histograms: histograms,

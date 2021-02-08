@@ -14,6 +14,7 @@ type SingleHistogram struct {
 }
 
 type GetHistogramsResponse struct {
+	MetaResponse
 	Progress   string            `json:"progress"`
 	Count      int64             `json:"count"`
 	Histograms []SingleHistogram `json:"histograms"`

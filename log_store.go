@@ -570,7 +570,7 @@ func (s *LogStore) getLogs(topic string, from int64, to int64, queryExp string,
 
 	return r, body, &GetLogsResponse{
 		MetaResponse: MetaResponse{
-			RequestId: r.Header[RequestIDHeader][0],
+			RequestId: r.Header.Get(RequestIDHeader),
 		},
 		Progress: r.Header[ProgressHeader][0],
 		Count:    count,

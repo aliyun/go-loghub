@@ -10,10 +10,10 @@ import (
 )
 
 func TestIngestion(t *testing.T) {
-	suite.Run(t, new(IngestionTestSuite))
+	suite.Run(t, new(JobTestSuite))
 }
 
-type IngestionTestSuite struct {
+type JobTestSuite struct {
 	suite.Suite
 	endpoint        string
 	projectName     string
@@ -23,7 +23,7 @@ type IngestionTestSuite struct {
 	client          Client
 }
 
-func (i *IngestionTestSuite) SetupSuite() {
+func (i *JobTestSuite) SetupSuite() {
 	i.endpoint = os.Getenv("LOG_TEST_ENDPOINT")
 	i.projectName = os.Getenv("LOG_TEST_PROJECT")
 	i.logstoreName = os.Getenv("LOG_TEST_LOGSTORE")
@@ -42,12 +42,12 @@ func (i *IngestionTestSuite) SetupSuite() {
 	time.Sleep(time.Minute)
 }
 
-func (i *IngestionTestSuite) TearDownSuite() {
+func (i *JobTestSuite) TearDownSuite() {
 	i.client.DeleteLogStore(i.projectName, i.logstoreName)
 	i.client.DeleteProject(i.projectName)
 }
 
-func (i *IngestionTestSuite) TestIngestionOSS_CRUD() {
+func (i *JobTestSuite) TestIngestionOSS_CRUD() {
 	ingestion := getOssIngestion(i.logstoreName)
 	if err := i.client.CreateIngestion(i.projectName, ingestion); err != nil {
 		i.FailNowf("create ingestion failed", fmt.Sprintf("%v", err))
@@ -149,4 +149,93 @@ func getOssIngestion(logstore string) *Ingestion {
 		},
 	}
 	return ingestion
+}
+
+func (i *JobTestSuite) TestExport_CRUD() {
+	export := getOssExport(i.logstoreName)
+	if err := i.client.CreateExport(i.projectName, export); err != nil {
+		i.FailNowf("create export failed", fmt.Sprintf("%v", err))
+	}
+	export.Description = "test"
+	export.ExportConfiguration.DataSink.(*AliyunOSSSink).BufferSize = 128
+	if err := i.client.UpdateExport(i.projectName, export); err != nil {
+		i.FailNowf("update export failed", fmt.Sprintf("%v", err))
+	} else if getExport, err := i.client.GetExport(i.projectName, export.Name); err != nil {
+		i.FailNowf("get export failed", fmt.Sprintf("%v", err))
+	} else {
+		i.Equal(export.Name, getExport.Name)
+		i.Equal(export.DisplayName, getExport.DisplayName)
+		i.Equal(export.Description, getExport.Description)
+		i.Equal(export.Type, getExport.Type)
+		i.Equal(export.Schedule.Type, getExport.Schedule.Type)
+		i.Equal(export.ExportConfiguration.FromTime, getExport.ExportConfiguration.FromTime)
+		i.Equal(export.ExportConfiguration.ToTime, getExport.ExportConfiguration.ToTime)
+		i.Equal(export.ExportConfiguration.LogStore, getExport.ExportConfiguration.LogStore)
+		i.Equal("b", getExport.ExportConfiguration.Parameters["a"])
+		i.Equal(export.ExportConfiguration.RoleArn, getExport.ExportConfiguration.RoleArn)
+		i.Equal(export.ExportConfiguration.Version, getExport.ExportConfiguration.Version)
+		getSink := getExport.ExportConfiguration.DataSink.(*AliyunOSSSink)
+		i.Equal(DataSinkOSS, getSink.Type)
+		i.Equal("test-roleArn", getSink.RoleArn)
+		i.Equal("test-bucket", getSink.Bucket)
+		i.Equal("test-prefix", getSink.Prefix)
+		i.Equal("test-suffix", getSink.Suffix)
+		i.Equal("%Y/%m/%d/%H/%M", getSink.PathFormat)
+		i.Equal("time", getSink.PathFormatType)
+		i.Equal(int64(128), getSink.BufferSize)
+		i.Equal(int64(300), getSink.BufferInterval)
+		i.Equal("+0800", getSink.TimeZone)
+		i.Equal(OSSContentDetailTypeJSON, getSink.ContentType)
+		i.Equal(OSSCompressionTypeSnappy, getSink.CompressionType)
+		i.Equal(`{"enableTag":true}`, getSink.ContentDetail)
+	}
+	if _, total, count, err := i.client.ListExport(i.projectName, i.logstoreName, "", "", 0, 10); err != nil {
+		i.FailNowf("list export failed", fmt.Sprintf("%v", err))
+	} else {
+		i.Equal(1, total)
+		i.Equal(1, count)
+	}
+	if err := i.client.DeleteExport(i.projectName, export.Name); err != nil {
+		i.FailNowf("delete export failed", fmt.Sprintf("%v", err))
+	}
+}
+
+func getOssExport(logstore string) *Export {
+	timeUnix := time.Now().Unix()
+	return &Export{
+		ScheduledJob: ScheduledJob{
+			BaseJob: BaseJob{
+				Name:        fmt.Sprintf("test-oss-export-%d", timeUnix),
+				DisplayName: "test-oss-export",
+				Description: "",
+				Type:        EXPORT_JOB,
+			},
+			Schedule: &Schedule{
+				Type: "Resident",
+			},
+		},
+		ExportConfiguration: &ExportConfiguration{
+			FromTime:   timeUnix - 3600,
+			ToTime:     timeUnix,
+			LogStore:   logstore,
+			Parameters: map[string]string{"a": "b"},
+			RoleArn:    "test-roleArn",
+			Version:    ExportVersion2,
+			DataSink: &AliyunOSSSink{
+				Type:            DataSinkOSS,
+				RoleArn:         "test-roleArn",
+				Bucket:          "test-bucket",
+				Prefix:          "test-prefix",
+				Suffix:          "test-suffix",
+				PathFormat:      "%Y/%m/%d/%H/%M",
+				PathFormatType:  "time",
+				BufferSize:      256,
+				BufferInterval:  300,
+				TimeZone:        "+0800",
+				ContentType:     OSSContentDetailTypeJSON,
+				CompressionType: OSSCompressionTypeSnappy,
+				ContentDetail:   `{"enableTag":true}`,
+			},
+		},
+	}
 }

@@ -56,7 +56,7 @@ type FunctionConfig struct {
 	RegionName       string `json:"regionName"`
 	ServiceName      string `json:"serviceName"`
 	FunctionName     string `json:"functionName"`
-	RoleArn          string `json:"roleArn"`
+	RoleARN          string `json:"roleArn"`
 }
 
 type JobLogConfig struct {

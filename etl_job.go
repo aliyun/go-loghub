@@ -44,9 +44,11 @@ type SourceConfig struct {
 }
 
 type TriggerConfig struct {
-	MaxRetryTime    int    `json:"maxRetryTime"`
-	TriggerInterval int    `json:"triggerInterval"`
-	RoleARN         string `json:"roleArn"`
+	MaxRetryTime     int    `json:"maxRetryTime"`
+	TriggerInterval  int    `json:"triggerInterval"`
+	RoleARN          string `json:"roleArn"`
+	StartingPosition string `json:"startingPosition"`
+	StartingUnixtime int64  `json:"startingUnixtime"`
 }
 
 type FunctionConfig struct {

@@ -30,15 +30,25 @@ type Producer struct {
 }
 
 func InitProducer(producerConfig *ProducerConfig) *Producer {
-	logger := logConfig(producerConfig)
+	return initProducer(nil, producerConfig)
+}
 
-	client := sls.CreateNormalInterface(producerConfig.Endpoint, producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
-	if producerConfig.UpdateStsToken != nil && producerConfig.StsTokenShutDown != nil {
-		stsClient, err := sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
-		if err != nil {
-			level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
-		} else {
-			client = stsClient
+// InitProducerWithClient Support custome client
+func InitProducerWithClient(client sls.ClientInterface, producerConfig *ProducerConfig) *Producer {
+	return initProducer(client, producerConfig)
+}
+
+func initProducer(client sls.ClientInterface, producerConfig *ProducerConfig) *Producer {
+	logger := logConfig(producerConfig)
+	if client == nil {
+		client = sls.CreateNormalInterface(producerConfig.Endpoint, producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
+		if producerConfig.UpdateStsToken != nil && producerConfig.StsTokenShutDown != nil {
+			stsClient, err := sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
+			if err != nil {
+				level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
+			} else {
+				client = stsClient
+			}
 		}
 	}
 	if producerConfig.HTTPClient != nil {

@@ -23,8 +23,17 @@ type ConsumerWorker struct {
 }
 
 func InitConsumerWorker(option LogHubConfig, do func(int, *sls.LogGroupList) string) *ConsumerWorker {
+	return initConsumerWorker(nil, option, do)
+}
+
+// InitConsumerWorkerWithClient Support custome client
+func InitConsumerWorkerWithClient(client *sls.Client, option LogHubConfig, do func(int, *sls.LogGroupList) string) *ConsumerWorker {
+	return initConsumerWorker(client, option, do)
+}
+
+func initConsumerWorker(client *sls.Client, option LogHubConfig, do func(int, *sls.LogGroupList) string) *ConsumerWorker {
 	logger := logConfig(option)
-	consumerClient := initConsumerClient(option, logger)
+	consumerClient := initConsumerClient(client, option, logger)
 	consumerHeatBeat := initConsumerHeatBeat(consumerClient, logger)
 	consumerWorker := &ConsumerWorker{
 		consumerHeatBeat:   consumerHeatBeat,

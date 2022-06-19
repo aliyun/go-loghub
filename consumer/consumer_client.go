@@ -15,7 +15,7 @@ type ConsumerClient struct {
 	logger        log.Logger
 }
 
-func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient {
+func initConsumerClient(client *sls.Client, option LogHubConfig, logger log.Logger) *ConsumerClient {
 	// Setting configuration defaults
 	if option.HeartbeatIntervalInSecond == 0 {
 		option.HeartbeatIntervalInSecond = 20
@@ -26,12 +26,14 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 	if option.MaxFetchLogGroupCount == 0 {
 		option.MaxFetchLogGroupCount = 1000
 	}
-	client := &sls.Client{
-		Endpoint:        option.Endpoint,
-		AccessKeyID:     option.AccessKeyID,
-		AccessKeySecret: option.AccessKeySecret,
-		SecurityToken:   option.SecurityToken,
-		UserAgent: option.ConsumerGroupName + "_" + option.ConsumerName,
+	if client == nil {
+		client = &sls.Client{
+			Endpoint:        option.Endpoint,
+			AccessKeyID:     option.AccessKeyID,
+			AccessKeySecret: option.AccessKeySecret,
+			SecurityToken:   option.SecurityToken,
+			UserAgent:       option.ConsumerGroupName + "_" + option.ConsumerName,
+		}
 	}
 	if option.HTTPClient != nil {
 		client.SetHTTPClient(option.HTTPClient)

@@ -244,7 +244,9 @@ type (
 		TimeZone        string             `json:"timeZone"`
 		ContentType     OSSContentType     `json:"contentType"`
 		CompressionType OSSCompressionType `json:"compressionType"`
-		ContentDetail   string             `json:"contentDetail"` // according to ContentType, its value is the corresponding CsvContentDetail, JsonContentDetail, ParquetContentDetail, OrcContentDetail serialized string
+		//CsvContentDetail, JsonContentDetail, ParquetContentDetail, OrcContentDetail
+		// the old version ContentDetail is st  ring（struct serialized string）, and now we highly recommend you use the struct ContentDetail directly
+		ContentDetail interface{} `json:"contentDetail"`
 	}
 
 	CsvContentDetail struct {

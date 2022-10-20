@@ -13,7 +13,7 @@ import (
 )
 
 type ConsumerWorker struct {
-	consumerHeatBeat   *ConsumerHeatBeat
+	ConsumerHeatBeat   *ConsumerHeatBeat
 	client             *ConsumerClient
 	workerShutDownFlag *atomic.Bool
 	shardConsumer      sync.Map // map[int]*ShardConsumerWorker
@@ -27,7 +27,7 @@ func InitConsumerWorker(option LogHubConfig, do func(int, *sls.LogGroupList) str
 	consumerClient := initConsumerClient(option, logger)
 	consumerHeatBeat := initConsumerHeatBeat(consumerClient, logger)
 	consumerWorker := &ConsumerWorker{
-		consumerHeatBeat:   consumerHeatBeat,
+		ConsumerHeatBeat:   consumerHeatBeat,
 		client:             consumerClient,
 		workerShutDownFlag: atomic.NewBool(false),
 		//shardConsumer:      make(map[int]*ShardConsumerWorker),
@@ -46,7 +46,7 @@ func (consumerWorker *ConsumerWorker) Start() {
 func (consumerWorker *ConsumerWorker) StopAndWait() {
 	level.Info(consumerWorker.Logger).Log("msg", "*** try to exit ***")
 	consumerWorker.workerShutDownFlag.Store(true)
-	consumerWorker.consumerHeatBeat.shutDownHeart()
+	consumerWorker.ConsumerHeatBeat.shutDownHeart()
 	consumerWorker.waitGroup.Wait()
 	level.Info(consumerWorker.Logger).Log("msg", "consumer worker stopped", "consumer name", consumerWorker.client.option.ConsumerName)
 }
@@ -54,10 +54,10 @@ func (consumerWorker *ConsumerWorker) StopAndWait() {
 func (consumerWorker *ConsumerWorker) run() {
 	level.Info(consumerWorker.Logger).Log("msg", "consumer worker start", "worker name", consumerWorker.client.option.ConsumerName)
 	defer consumerWorker.waitGroup.Done()
-	go consumerWorker.consumerHeatBeat.heartBeatRun()
+	go consumerWorker.ConsumerHeatBeat.heartBeatRun()
 
 	for !consumerWorker.workerShutDownFlag.Load() {
-		heldShards := consumerWorker.consumerHeatBeat.getHeldShards()
+		heldShards := consumerWorker.ConsumerHeatBeat.getHeldShards()
 		lastFetchTime := time.Now().UnixNano() / 1000 / 1000
 
 		for _, shard := range heldShards {
@@ -127,7 +127,7 @@ func (consumerWorker *ConsumerWorker) cleanShardConsumer(owned_shards []int) {
 			}
 
 			if consumer.isShutDownComplete() {
-				isDeleteShard := consumerWorker.consumerHeatBeat.removeHeartShard(shard)
+				isDeleteShard := consumerWorker.ConsumerHeatBeat.removeHeartShard(shard)
 				if isDeleteShard {
 					level.Info(consumerWorker.Logger).Log("msg", "Remove an assigned consumer shard", "shardId", shard)
 					consumerWorker.shardConsumer.Delete(shard)

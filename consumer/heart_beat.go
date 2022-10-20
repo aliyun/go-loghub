@@ -2,6 +2,7 @@ package consumerLibrary
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 var shardLock sync.RWMutex
 
 type ConsumerHeatBeat struct {
+	Flag                     int
 	client                   *ConsumerClient
 	shutDownFlag             *atomic.Bool
 	heldShards               []int
@@ -72,6 +74,12 @@ func (consumerHeatBeat *ConsumerHeatBeat) heartBeatRun() {
 		responseShards, err := consumerHeatBeat.client.heartBeat(consumerHeatBeat.getHeartShards())
 		if err != nil {
 			level.Warn(consumerHeatBeat.logger).Log("msg", "send heartbeat error", "error", err)
+			if strings.Contains(err.Error(), "ConsumerGroupNotExist") {
+				level.Error(consumerHeatBeat.logger).Log("msg", "send heartbeat and heartshutDown", "error", "ConsumerGroupNotExist")
+				consumerHeatBeat.shutDownFlag.Store(true)
+				consumerHeatBeat.Flag = 1
+				//
+			}
 			if time.Now().Unix()-consumerHeatBeat.lastHeartBeatSuccessTime > int64(consumerHeatBeat.client.consumerGroup.Timeout+consumerHeatBeat.client.option.HeartbeatIntervalInSecond) {
 				consumerHeatBeat.setHeldShards([]int{})
 				level.Info(consumerHeatBeat.logger).Log("msg", "Heart beat timeout, automatic reset consumer held shards")

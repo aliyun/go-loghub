@@ -4,6 +4,7 @@ import (
 	"github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"strings"
 	"sync"
 	"time"
 )
@@ -75,6 +76,10 @@ func (consumer *ShardConsumerWorker) consume() {
 			}
 			err := consumer.consumerCheckPointTracker.flushCheckPoint()
 			if err != nil {
+				if strings.Contains(err.Error(), "ConsumerGroupNotExist") {
+					consumer.setConsumerStatus(SHUTDOWN_COMPLETE)
+					level.Warn(consumer.logger).Log("error", "consumerCheckPointTracker shut down!")
+				}
 				level.Warn(consumer.logger).Log("msg", "Flush checkpoint error，prepare for retry", "error message:", err)
 			} else {
 				consumer.setConsumerStatus(SHUTDOWN_COMPLETE)
@@ -108,6 +113,7 @@ func (consumer *ShardConsumerWorker) consume() {
 			} else if consumer.lastFetchGroupCount < 1000 {
 				isGenerateFetchTask = (time.Now().UnixNano()/1e6 - consumer.lastFetchtime) > 50
 			}
+			// 追到  isGenerateFetchTask
 			if isGenerateFetchTask {
 				consumer.lastFetchtime = time.Now().UnixNano() / 1e6
 				// Set the logback cursor. If the logs are not consumed, save the logback cursor to the server.
@@ -127,9 +133,15 @@ func (consumer *ShardConsumerWorker) consume() {
 					} else {
 						consumer.lastFetchTimeForForceFlushCpt = time.Now().Unix()
 					}
+					// 追到 -----
 					if time.Now().Unix()-consumer.lastFetchTimeForForceFlushCpt > 30 {
 						err := consumer.consumerCheckPointTracker.flushCheckPoint()
 						if err != nil {
+							///  flushCheckPoint 删除消费节点报错点
+							if strings.Contains(err.Error(), "ConsumerGroupNotExist") {
+								//fmt.Println("--------------xxx----")
+								return
+							}
 							level.Warn(consumer.logger).Log("msg", "Failed to save the final checkpoint", "error:", err)
 						} else {
 							consumer.lastFetchTimeForForceFlushCpt = 0

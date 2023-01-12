@@ -75,7 +75,7 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 			}
 			return
 		}
-		level.Info(ioWorker.logger).Log("msg", "sendToServer failed", "error", err)
+		level.Info(ioWorker.logger).Log("msg", "sendToServer failed", "project", producerBatch.getProject(), "logstore", producerBatch.getLogstore(), "error", err)
 		if slsError, ok := err.(*sls.Error); ok {
 			if _, ok := ioWorker.noRetryStatusCodeMap[int(slsError.HTTPCode)]; ok {
 				ioWorker.addErrorMessageToBatchAttempt(producerBatch, err, false, beginMs)

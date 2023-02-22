@@ -1,11 +1,12 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"strconv"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // SavedSearch ...

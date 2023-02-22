@@ -1,10 +1,11 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // ResourceTag define

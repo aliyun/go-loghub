@@ -1,11 +1,12 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"github.com/stretchr/testify/suite"
 )

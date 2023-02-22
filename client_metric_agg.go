@@ -1,9 +1,10 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 const (

@@ -1,12 +1,13 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestIngestion(t *testing.T) {

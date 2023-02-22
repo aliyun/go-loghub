@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"time"
+
+	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 const (

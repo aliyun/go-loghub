@@ -1,8 +1,9 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 const (
@@ -10,9 +11,9 @@ const (
 )
 
 type Shipper struct {
-	ShipperName            string          `json:"shipperName"`
-	TargetType             string          `json:"targetType"`
-	RawTargetConfiguration json.RawMessage `json:"targetConfiguration"`
+	ShipperName            string `json:"shipperName"`
+	TargetType             string `json:"targetType"`
+	RawTargetConfiguration []byte `json:"targetConfiguration"`
 
 	TargetConfiguration interface{} `json:"-"`
 }

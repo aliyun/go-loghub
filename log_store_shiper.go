@@ -1,10 +1,11 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // CreateShipper ...
@@ -109,10 +110,10 @@ func (s *LogStore) ListShipper() ([]string, error) {
 		json.Unmarshal(buf, err)
 		return nil, err
 	}
-	type Body struct{
-		Count int
+	type Body struct {
+		Count   int
 		Shipper []string
-		Total int
+		Total   int
 	}
 
 	body := &Body{}

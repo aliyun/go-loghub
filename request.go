@@ -2,13 +2,14 @@ package sls
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"github.com/cenkalti/backoff"
 	"github.com/go-kit/kit/log/level"

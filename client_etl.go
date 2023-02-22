@@ -1,10 +1,11 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 type ETL struct {

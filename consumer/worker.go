@@ -34,7 +34,11 @@ func InitConsumerWorker(option LogHubConfig, do func(int, *sls.LogGroupList) str
 		do:     do,
 		Logger: logger,
 	}
-	consumerClient.createConsumerGroup()
+	if err := consumerClient.createConsumerGroup(); err != nil {
+		level.Error(consumerWorker.Logger).Log(
+			"msg", "possibly failed to create or update consumer group, please check worker run log",
+			"err", err)
+	}
 	return consumerWorker
 }
 
@@ -65,7 +69,7 @@ func (consumerWorker *ConsumerWorker) run() {
 				break
 			}
 			shardConsumer := consumerWorker.getShardConsumer(shard)
-			if shardConsumer.getConsumerIsCurrentDoneStatus() == true {
+			if shardConsumer.getConsumerIsCurrentDoneStatus() {
 				shardConsumer.consume()
 			} else {
 				continue

@@ -164,7 +164,7 @@ func (consumer *ShardConsumerWorker) consume() {
 func (consumer *ShardConsumerWorker) consumerShutDown() {
 	consumer.consumerShutDownFlag = true
 	if !consumer.isShutDownComplete() {
-		if consumer.getIsFlushCheckpointDoneStatus() == true {
+		if consumer.getIsFlushCheckpointDoneStatus() {
 			consumer.consume()
 		} else {
 			return

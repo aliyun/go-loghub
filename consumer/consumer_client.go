@@ -1,6 +1,7 @@
 package consumerLibrary
 
 import (
+	"fmt"
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
@@ -31,15 +32,15 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 		AccessKeyID:     option.AccessKeyID,
 		AccessKeySecret: option.AccessKeySecret,
 		SecurityToken:   option.SecurityToken,
-		UserAgent: option.ConsumerGroupName + "_" + option.ConsumerName,
+		UserAgent:       option.ConsumerGroupName + "_" + option.ConsumerName,
 	}
 	if option.HTTPClient != nil {
 		client.SetHTTPClient(option.HTTPClient)
 	}
 	consumerGroup := sls.ConsumerGroup{
-		option.ConsumerGroupName,
-		option.HeartbeatIntervalInSecond * 3,
-		option.InOrder,
+		ConsumerGroupName: option.ConsumerGroupName,
+		Timeout:           option.HeartbeatIntervalInSecond * 3,
+		InOrder:           option.InOrder,
 	}
 	consumerClient := &ConsumerClient{
 		option,
@@ -51,18 +52,38 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 	return consumerClient
 }
 
-func (consumer *ConsumerClient) createConsumerGroup() {
-	err := consumer.client.CreateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup)
+func (consumer *ConsumerClient) createConsumerGroup() error {
+	consumerGroups, err := consumer.client.ListConsumerGroup(consumer.option.Project, consumer.option.Logstore)
 	if err != nil {
-		if slsError, ok := err.(*sls.Error); ok {
-			if slsError.Code == "ConsumerGroupAlreadyExist" {
-				level.Info(consumer.logger).Log("msg", "New consumer join the consumer group", "consumer name", consumer.option.ConsumerName, "group name", consumer.option.ConsumerGroupName)
+		return fmt.Errorf("list consumer group failed: %w", err)
+	}
+	alreadyExist := false
+	for _, cg := range consumerGroups {
+		if cg.ConsumerGroupName == consumer.consumerGroup.ConsumerGroupName {
+			alreadyExist = true
+			if (*cg) != consumer.consumerGroup {
+				level.Info(consumer.logger).Log("msg", "this config is different from original config, try to override it", "old_config", *cg)
 			} else {
-				level.Error(consumer.logger).Log("msg", "create consumer group error", "error", err)
-
+				level.Info(consumer.logger).Log("msg", "New consumer join the consumer group", "consumer name", consumer.option.ConsumerName,
+					"group name", consumer.option.ConsumerGroupName)
 			}
 		}
 	}
+	if alreadyExist {
+		err := consumer.client.UpdateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup)
+		if err != nil {
+			return fmt.Errorf("update consumer group failed: %w", err)
+		}
+	} else {
+		err := consumer.client.CreateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup)
+		if err != nil {
+			if slsError, ok := err.(*sls.Error); !ok || slsError.Code != "ConsumerGroupAlreadyExist" {
+				return fmt.Errorf("create consumer group failed: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (consumer *ConsumerClient) heartBeat(heart []int) ([]int, error) {

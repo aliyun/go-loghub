@@ -1,8 +1,12 @@
 package consumerLibrary
 
 import (
-	"github.com/aliyun/aliyun-log-go-sdk"
+	"fmt"
 	"testing"
+
+	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func InitOption() LogHubConfig {
@@ -36,7 +40,6 @@ func consumerGroup() sls.ConsumerGroup {
 }
 
 func TestConsumerClient_createConsumerGroup(t *testing.T) {
-
 	type fields struct {
 		option        LogHubConfig
 		client        *sls.Client
@@ -56,4 +59,42 @@ func TestConsumerClient_createConsumerGroup(t *testing.T) {
 		}
 		consumer.createConsumerGroup()
 	}
+}
+
+func internalGetConsumerGroup(client *sls.Client, project, logstore, groupName string) (sls.ConsumerGroup, error) {
+	cgs, err := client.ListConsumerGroup(project, logstore)
+	if err != nil {
+		return sls.ConsumerGroup{}, err
+	}
+	for _, cg := range cgs {
+		if cg.ConsumerGroupName == groupName {
+			return *cg, nil
+		}
+	}
+
+	return sls.ConsumerGroup{}, fmt.Errorf("consumer group not found")
+}
+
+func TestConsumerClient_updateConsumerGroup(t *testing.T) {
+	logger := log.NewNopLogger()
+	oldOption := InitOption()
+	newOption := oldOption
+	newOption.HeartbeatIntervalInSecond += 20
+	oldClient := initConsumerClient(oldOption, logger)
+	newClient := initConsumerClient(newOption, logger)
+	// ready
+	_ = oldClient.client.DeleteConsumerGroup(oldOption.Project, oldOption.Logstore, oldOption.ConsumerGroupName)
+	assert.NotEqual(t, newClient.consumerGroup, oldClient.consumerGroup)
+	// old config
+	assert.Nil(t, oldClient.createConsumerGroup())
+	cg, err := internalGetConsumerGroup(oldClient.client, oldOption.Project, oldOption.Logstore, oldOption.ConsumerGroupName)
+	assert.Nil(t, err)
+	assert.Equal(t, cg, oldClient.consumerGroup)
+	// new config
+	assert.Nil(t, newClient.createConsumerGroup())
+	cg, err = internalGetConsumerGroup(oldClient.client, oldOption.Project, oldOption.Logstore, oldOption.ConsumerGroupName)
+	assert.Nil(t, err)
+	assert.Equal(t, cg, newClient.consumerGroup)
+	// clean
+	_ = oldClient.client.DeleteConsumerGroup(oldOption.Project, oldOption.Logstore, oldOption.ConsumerGroupName)
 }

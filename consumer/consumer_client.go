@@ -62,7 +62,7 @@ func (consumer *ConsumerClient) createConsumerGroup() error {
 		if cg.ConsumerGroupName == consumer.consumerGroup.ConsumerGroupName {
 			alreadyExist = true
 			if (*cg) != consumer.consumerGroup {
-				level.Info(consumer.logger).Log("msg", "this config is different from original config, try to override it", "old_config", *cg)
+				level.Info(consumer.logger).Log("msg", "this config is different from original config, try to override it", "old_config", cg)
 			} else {
 				level.Info(consumer.logger).Log("msg", "New consumer join the consumer group", "consumer name", consumer.option.ConsumerName,
 					"group name", consumer.option.ConsumerGroupName)

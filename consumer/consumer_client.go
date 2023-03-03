@@ -64,19 +64,18 @@ func (consumer *ConsumerClient) createConsumerGroup() error {
 			if (*cg) != consumer.consumerGroup {
 				level.Info(consumer.logger).Log("msg", "this config is different from original config, try to override it", "old_config", cg)
 			} else {
-				level.Info(consumer.logger).Log("msg", "New consumer join the consumer group", "consumer name", consumer.option.ConsumerName,
+				level.Info(consumer.logger).Log("msg", "new consumer join the consumer group", "consumer name", consumer.option.ConsumerName,
 					"group name", consumer.option.ConsumerGroupName)
+				return nil
 			}
 		}
 	}
 	if alreadyExist {
-		err := consumer.client.UpdateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup)
-		if err != nil {
+		if err := consumer.client.UpdateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup); err != nil {
 			return fmt.Errorf("update consumer group failed: %w", err)
 		}
 	} else {
-		err := consumer.client.CreateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup)
-		if err != nil {
+		if err := consumer.client.CreateConsumerGroup(consumer.option.Project, consumer.option.Logstore, consumer.consumerGroup); err != nil {
 			if slsError, ok := err.(*sls.Error); !ok || slsError.Code != "ConsumerGroupAlreadyExist" {
 				return fmt.Errorf("create consumer group failed: %w", err)
 			}

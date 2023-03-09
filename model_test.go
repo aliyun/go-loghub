@@ -1,9 +1,10 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"github.com/stretchr/testify/assert"
 )

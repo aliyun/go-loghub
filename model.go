@@ -1,11 +1,12 @@
 package sls
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // GetLogRequest for GetLogsV2
@@ -66,7 +67,7 @@ type GetLogsResponse struct {
 // note: GetLogLinesResponse.Logs is nil when use GetLogLinesResponse
 type GetLogLinesResponse struct {
 	GetLogsResponse
-	Lines []json.RawMessage
+	Lines []byte
 }
 
 func (resp *GetLogsResponse) IsComplete() bool {

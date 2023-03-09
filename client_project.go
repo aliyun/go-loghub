@@ -1,8 +1,9 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"io/ioutil"
 	"net/http"
@@ -18,9 +19,10 @@ func (c *Client) ListLogStore(project string) ([]string, error) {
 }
 
 // ListLogStoreV2 list logstores with params :
-//                offset: start offset
-//                size: max return size
-//                telemetryType : telemetry type filter
+//
+//	offset: start offset
+//	size: max return size
+//	telemetryType : telemetry type filter
 func (c *Client) ListLogStoreV2(project string, offset, size int, telemetryType string) ([]string, error) {
 	proj := convert(c, project)
 	return proj.ListLogStoreV2(offset, size, telemetryType)

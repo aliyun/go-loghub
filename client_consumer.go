@@ -1,8 +1,9 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"io/ioutil"
 	"net/http"
@@ -23,7 +24,7 @@ type ConsumerGroup struct {
 type ConsumerGroupCheckPoint struct {
 	ShardID    int    `json:"shard"`
 	CheckPoint string `json:"checkpoint"`
-	UpdateTime int64    `json:"updateTime"`
+	UpdateTime int64  `json:"updateTime"`
 	Consumer   string `json:"consumer"`
 }
 

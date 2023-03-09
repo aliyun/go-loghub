@@ -1,11 +1,12 @@
 package sls
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 const (

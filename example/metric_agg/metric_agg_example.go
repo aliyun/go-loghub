@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+
 	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 func crud(client sls.Client, sourceProject string, aggRules *sls.MetricAggRules, testId string) {

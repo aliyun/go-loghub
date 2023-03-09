@@ -97,7 +97,7 @@ func (s *LogstoreTestSuite) TestCreateLogStoreWithNewRequestBody() {
 	s.Equal(true, store.AutoSplit)
 	s.Equal(16, store.MaxSplitShard)
 	s.Equal(false, store.AppendMeta)
-	s.Equal(uint32(0), store.HotTTL)
+	s.Equal(0, store.HotTTL)
 }
 
 func (s *LogstoreTestSuite) TestCheckLogStore() {

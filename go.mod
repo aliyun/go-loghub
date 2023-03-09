@@ -1,8 +1,9 @@
 module github.com/aliyun/aliyun-log-go-sdk
 
-go 1.13
+go 1.15
 
 require (
+	github.com/bytedance/sonic v1.8.3
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58
 	github.com/frankban/quicktest v1.10.2 // indirect

@@ -279,3 +279,12 @@ if err != nil {
 ```
 protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/gogo/protobuf/protobuf --gofast_out=. log.proto
 ```
+
+### 使用go build tags 选择json encoding/decoding
+
+允许用户在构建时主动选择不同的json序列化包，支持以下四种json序列化包
+
+- github.com/aliyun/aliyun-log-go-sdk/internal/json: 标准包json序列化包，默认使用
+- [json-iterator](https://github.com/json-iterator/go): 通过`go build -tags jsoniter`选择使用`json-iterator`序列化包
+- [go-json](https://github.com/goccy/go-json): 通过`go build -tags go_json`选择使用`go-json`序列化包
+- [sonic](https://github.com/bytedance/sonic): 通过`go build -tags sonic`选择使用`sonic`序列化包。该方案使用cgo，因此在编译时需要设置`CGO_ENABLE=1`，且要求go版本大于1.15

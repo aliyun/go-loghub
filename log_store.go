@@ -1,9 +1,10 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"io/ioutil"
 	"net/http"
@@ -608,7 +609,7 @@ func (s *LogStore) GetLogLinesV2(req *GetLogRequest) (*GetLogLinesResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	var logs []json.RawMessage
+	var logs [][]byte
 	err = json.Unmarshal(b, &logs)
 	if err != nil {
 		return nil, NewBadResponseError(string(b), rsp.Header, rsp.StatusCode)

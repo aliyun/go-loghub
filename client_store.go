@@ -2,7 +2,6 @@ package sls
 
 import (
 	base64E "encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"github.com/go-kit/kit/log/level"
 )

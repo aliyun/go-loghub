@@ -31,15 +31,15 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 		AccessKeyID:     option.AccessKeyID,
 		AccessKeySecret: option.AccessKeySecret,
 		SecurityToken:   option.SecurityToken,
-		UserAgent: option.ConsumerGroupName + "_" + option.ConsumerName,
+		UserAgent:       option.ConsumerGroupName + "_" + option.ConsumerName,
 	}
 	if option.HTTPClient != nil {
 		client.SetHTTPClient(option.HTTPClient)
 	}
 	consumerGroup := sls.ConsumerGroup{
-		option.ConsumerGroupName,
-		option.HeartbeatIntervalInSecond * 3,
-		option.InOrder,
+		ConsumerGroupName: option.ConsumerGroupName,
+		Timeout:           option.HeartbeatIntervalInSecond * 3,
+		InOrder:           option.InOrder,
 	}
 	consumerClient := &ConsumerClient{
 		option,

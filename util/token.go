@@ -4,13 +4,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 )

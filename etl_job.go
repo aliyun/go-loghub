@@ -1,6 +1,6 @@
 package sls
 
-import "encoding/json"
+import "github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 // This module is only used in SLS Trigger for Aliyun FunctionCompute.
 type ETLJob struct {

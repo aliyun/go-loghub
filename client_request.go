@@ -3,8 +3,9 @@ package sls
 // request sends a request to SLS.
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"io/ioutil"
 	"net/http"

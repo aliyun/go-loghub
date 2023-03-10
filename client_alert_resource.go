@@ -1,6 +1,6 @@
 package sls
 
-import "encoding/json"
+import "github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 const (
 	ResourceNameAlertPolicy        = "sls.alert.alert_policy"

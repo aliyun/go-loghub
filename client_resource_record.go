@@ -1,9 +1,10 @@
 package sls
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 type ResourceRecord struct {

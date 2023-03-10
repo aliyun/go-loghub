@@ -1,8 +1,9 @@
 package sls
 
 import (
-	"encoding/json"
 	"errors"
+
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // const InputTypes

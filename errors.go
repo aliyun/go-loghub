@@ -1,7 +1,7 @@
 package sls
 
 import (
-	"encoding/json"
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 )
 
 // BadResponseError : special sls error, not valid json format

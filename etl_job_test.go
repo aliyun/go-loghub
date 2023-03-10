@@ -3,7 +3,7 @@ package sls
 import (
 	"testing"
 
-	"encoding/json"
+	"github.com/aliyun/aliyun-log-go-sdk/internal/json"
 
 	"github.com/stretchr/testify/suite"
 )

@@ -475,6 +475,7 @@ func UpdateInputConfigField(detail InputDetailInterface, key string, val interfa
 type OutputDetail struct {
 	ProjectName  string `json:"projectName"`
 	LogStoreName string `json:"logstoreName"`
+	CompressType string `json:"compressType"`
 }
 
 // InputDetailInterface all input detail's interface
@@ -490,6 +491,6 @@ type LogConfig struct {
 	OutputType   string               `json:"outputType"`
 	OutputDetail OutputDetail         `json:"outputDetail"`
 
-	CreateTime     uint32 `json:"createTime,omitempty"`
+	CreateTime     uint32 `json:"createTime,omitempty`
 	LastModifyTime uint32 `json:"lastModifyTime,omitempty"`
 }

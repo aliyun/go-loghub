@@ -20,7 +20,7 @@ type ConsumerGroup struct {
 }
 
 func (cg *ConsumerGroup) String() string {
-	return fmt.Sprintf("%+v", cg)
+	return fmt.Sprintf("[ConsumerGroupName: %s, Timeout: %d, InOrder: %t]", cg.ConsumerGroupName, cg.Timeout, cg.InOrder)
 }
 
 // ConsumerGroupCheckPoint type define

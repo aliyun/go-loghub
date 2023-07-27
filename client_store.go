@@ -531,11 +531,3 @@ func (c *Client) UpdateSubStoreTTL(project, logstore string, ttl int) (err error
 	}
 	return
 }
-
-//func (c *Client) PutRawLogs(project, logstore string, lg []byte, compressType int) (err error) {
-//
-//}
-//
-//func (c *Client) PosLogStoreRawLogs(project, logstore string, lg []byte, compressType int, hashKey *string) {
-//
-//}

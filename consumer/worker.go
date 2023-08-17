@@ -181,9 +181,9 @@ func logConfig(option LogHubConfig) log.Logger {
 		}
 	} else {
 		if option.IsJsonType {
-			logger = log.NewLogfmtLogger(initLogFlusher(option))
-		} else {
 			logger = log.NewJSONLogger(initLogFlusher(option))
+		} else {
+			logger = log.NewLogfmtLogger(initLogFlusher(option))
 		}
 	}
 	switch option.AllowLogLevel {

@@ -2,6 +2,7 @@ package consumerLibrary
 
 import (
 	"os"
+	"io"
 	"sync"
 	"time"
 
@@ -169,22 +170,30 @@ func (consumerWorker *ConsumerWorker) cleanShardConsumer(owned_shards []int) {
 	)
 }
 
-// This function is used to initialize the global log configuration
+// This function is used to initialize the global logger
 func logConfig(option LogHubConfig) log.Logger {
-	var logger log.Logger
-
+	var writer io.Writer
 	if option.LogFileName == "" {
-		if option.IsJsonType {
-			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stdout))
-		} else {
-			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
-		}
+		writer = log.NewSyncWriter(os.Stdout)
 	} else {
-		if option.IsJsonType {
-			logger = log.NewJSONLogger(initLogFlusher(option))
-		} else {
-			logger = log.NewLogfmtLogger(initLogFlusher(option))
+		if option.LogMaxSize == 0 {
+			option.LogMaxSize = 10
 		}
+		if option.LogMaxBackups == 0 {
+			option.LogMaxBackups = 10
+		}
+		writer = &lumberjack.Logger{
+			Filename:   option.LogFileName,
+			MaxSize:    option.LogMaxSize,
+			MaxBackups: option.LogMaxBackups,
+			Compress:   option.LogCompass,
+		}
+	}
+	var logger log.Logger
+	if option.IsJsonType {
+		logger = log.NewJSONLogger(writer)
+	} else {
+		logger = log.NewLogfmtLogger(writer)
 	}
 	switch option.AllowLogLevel {
 	case "debug":
@@ -200,19 +209,4 @@ func logConfig(option LogHubConfig) log.Logger {
 	}
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
-}
-
-func initLogFlusher(option LogHubConfig) *lumberjack.Logger {
-	if option.LogMaxSize == 0 {
-		option.LogMaxSize = 10
-	}
-	if option.LogMaxBackups == 0 {
-		option.LogMaxBackups = 10
-	}
-	return &lumberjack.Logger{
-		Filename:   option.LogFileName,
-		MaxSize:    option.LogMaxSize,
-		MaxBackups: option.LogMaxBackups,
-		Compress:   option.LogCompass,
-	}
 }

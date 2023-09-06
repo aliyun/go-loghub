@@ -112,3 +112,35 @@ func (s *LostoreTestSuite) TestSplitShardDefault() {
 	assert.True(s.T(), id3 != -1)
 	assert.Equal(s.T(), 4, num3)
 }
+
+func (s *LostoreTestSuite) TestGetLogsV3ToCompleted() {
+	key := "key"
+	value := "val"
+	n := uint32(time.Now().Unix())
+	lg := &LogGroup{
+		Logs: []*Log{
+			{
+				Time: &n,
+				Contents: []*LogContent{
+					{
+						Key:   &key,
+						Value: &value,
+					},
+				},
+			},
+		},
+	}
+	project := s.projectName
+	logstore := s.logstoreName
+	err := s.client.PostLogStoreLogs(project, logstore, lg, nil)
+	s.Require().NoError(err)
+	time.Sleep(time.Second * 10)
+	resp, err := s.client.GetLogsToCompletedV3(project, logstore, &GetLogRequest{
+		From:  time.Now().Unix() - 30000,
+		To:    time.Now().Unix(),
+		Lines: 100,
+		Topic: "",
+	})
+	s.Require().NoError(err)
+	s.GreaterOrEqual(resp.Meta.Count, int64(1))
+}

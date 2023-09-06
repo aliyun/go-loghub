@@ -27,29 +27,46 @@ var (
 // this file is deprecated and no maintenance
 // see client_project.go
 
+// DataRedundancyType
+const (
+	PROJECT_DATA_REDUNDANCY_TYPE_UNKNOWN = "Unknown"
+	PROJECT_DATA_REDUNDANCY_TYPE_LRS     = "LRS"
+	PROJECT_DATA_REDUNDANCY_TYPE_ZRS     = "ZRS"
+)
+
 // LogProject defines log project
 type LogProject struct {
-	Name           string `json:"projectName"`    // Project name
-	Description    string `json:"description"`    // Project description
-	Status         string `json:"status"`         // Normal
-	Owner          string `json:"owner"`          // empty
-	Region         string `json:"region"`         // region id, eg cn-shanghai
-	CreateTime     string `json:"createTime"`     // unix time seconds, eg 1524539357
-	LastModifyTime string `json:"lastModifyTime"` // unix time seconds, eg 1524539357
+	Name               string `json:"projectName"`                  // Project name
+	Description        string `json:"description"`                  // Project description
+	Status             string `json:"status"`                       // Normal
+	Owner              string `json:"owner"`                        // empty
+	Region             string `json:"region"`                       // region id, eg cn-shanghai
+	CreateTime         string `json:"createTime"`                   // unix time seconds, eg 1524539357
+	LastModifyTime     string `json:"lastModifyTime"`               // unix time seconds, eg 1524539357
+	DataRedundancyType string `json:"dataRedundancyType,omitempty"` // data redundancy type, valid values: ['LRS', 'ZRS']
 
-	Endpoint        string // IP or hostname of SLS endpoint
-	AccessKeyID     string
-	AccessKeySecret string
-	SecurityToken   string
-	UsingHTTP       bool   // default https
-	UserAgent       string // default defaultLogUserAgent
-	AuthVersion     AuthVersionType
-	baseURL         string
-	retryTimeout    time.Duration
-	httpClient      *http.Client
+	Endpoint           string // IP or hostname of SLS endpoint
+	AccessKeyID        string // Deprecated: use CredentialsProvider instead
+	AccessKeySecret    string // Deprecated: use CredentialsProvider instead
+	SecurityToken      string // Deprecated: use CredentialsProvider instead
+	UsingHTTP          bool   // default https
+	UserAgent          string // default defaultLogUserAgent
+	AuthVersion        AuthVersionType
+	baseURL            string
+	retryTimeout       time.Duration
+	httpClient         *http.Client
+	credentialProvider CredentialsProvider
+
+	// User defined common headers.
+	//
+	// When conflict with sdk pre-defined headers, the value will
+	// be ignored
+	CommonHeaders      map[string]string
 }
 
 // NewLogProject creates a new SLS project.
+//
+// Deprecated: use NewLogProjectV2 instead.
 func NewLogProject(name, endpoint, accessKeyID, accessKeySecret string) (p *LogProject, err error) {
 	p = &LogProject{
 		Name:            name,
@@ -61,6 +78,25 @@ func NewLogProject(name, endpoint, accessKeyID, accessKeySecret string) (p *LogP
 	}
 	p.parseEndpoint()
 	return p, nil
+}
+
+// NewLogProjectV2 creates a new SLS project, with a CredentialsProvider.
+func NewLogProjectV2(name, endpoint string, provider CredentialsProvider) (p *LogProject, err error) {
+	p = &LogProject{
+		Name:               name,
+		Endpoint:           endpoint,
+		httpClient:         defaultHttpClient,
+		retryTimeout:       defaultRetryTimeout,
+		credentialProvider: provider,
+	}
+	p.parseEndpoint()
+	return p, nil
+}
+
+// With credentials provider
+func (p *LogProject) WithCredentialsProvider(provider CredentialsProvider) *LogProject {
+	p.credentialProvider = provider
+	return p
 }
 
 // WithToken add token parameter

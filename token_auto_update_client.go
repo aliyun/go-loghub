@@ -175,6 +175,16 @@ func (c *TokenAutoUpdateClient) CreateProject(name, description string) (prj *Lo
 	return
 }
 
+func (c *TokenAutoUpdateClient) CreateProjectV2(name, description, dataRedundancyType string) (prj *LogProject, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		prj, err = c.logClient.CreateProjectV2(name, description, dataRedundancyType)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 // UpdateProject create a new loghub project.
 func (c *TokenAutoUpdateClient) UpdateProject(name, description string) (prj *LogProject, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
@@ -319,6 +329,16 @@ func (c *TokenAutoUpdateClient) ListMachineGroup(project string, offset, size in
 func (c *TokenAutoUpdateClient) ListMachines(project, machineGroupName string) (ms []*Machine, total int, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		ms, total, err = c.logClient.ListMachines(project, machineGroupName)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) ListMachinesV2(project, machineGroupName string, offset, size int) (ms []*Machine, total int, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		ms, total, err = c.logClient.ListMachinesV2(project, machineGroupName, offset, size)
 		if !c.processError(err) {
 			return
 		}
@@ -706,6 +726,17 @@ func (c *TokenAutoUpdateClient) PostLogStoreLogs(project, logstore string, lg *L
 	return
 }
 
+// PostRawLogWithCompressType put raw log data to log service, no marshal
+func (c *TokenAutoUpdateClient) PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.PostRawLogWithCompressType(project, logstore, rawLogData, compressType, hashKey)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 // PutRawLogWithCompressType put raw log data to log service, no marshal
 func (c *TokenAutoUpdateClient) PutRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
@@ -749,8 +780,20 @@ func (c *TokenAutoUpdateClient) GetCursorTime(project, logstore string, shardID 
 
 func (c *TokenAutoUpdateClient) GetLogsBytes(project, logstore string, shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (out []byte, nextCursor string, err error) {
+	plr := &PullLogRequest{
+		Project:          project,
+		Logstore:         logstore,
+		ShardID:          shardID,
+		Cursor:           cursor,
+		EndCursor:        endCursor,
+		LogGroupMaxCount: logGroupMaxCount,
+	}
+	return c.GetLogsBytesV2(plr)
+}
+
+func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		out, nextCursor, err = c.logClient.GetLogsBytes(project, logstore, shardID, cursor, endCursor, logGroupMaxCount)
+		out, nextCursor, err = c.logClient.GetLogsBytesV2(plr)
 		if !c.processError(err) {
 			return
 		}
@@ -760,8 +803,20 @@ func (c *TokenAutoUpdateClient) GetLogsBytes(project, logstore string, shardID i
 
 func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error) {
+	plr := &PullLogRequest{
+		Project:          project,
+		Logstore:         logstore,
+		ShardID:          shardID,
+		Cursor:           cursor,
+		EndCursor:        endCursor,
+		LogGroupMaxCount: logGroupMaxCount,
+	}
+	return c.PullLogsV2(plr)
+}
+
+func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		gl, nextCursor, err = c.logClient.PullLogs(project, logstore, shardID, cursor, endCursor, logGroupMaxCount)
+		gl, nextCursor, err = c.logClient.PullLogsV2(plr)
 		if !c.processError(err) {
 			return
 		}
@@ -819,6 +874,16 @@ func (c *TokenAutoUpdateClient) GetLogsToCompletedV2(project, logstore string, r
 	return
 }
 
+func (c *TokenAutoUpdateClient) GetLogsToCompletedV3(project, logstore string, req *GetLogRequest) (r *GetLogsV3Response, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		r, err = c.logClient.GetLogsToCompletedV3(project, logstore, req)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) GetLogLinesV2(project, logstore string, req *GetLogRequest) (r *GetLogLinesResponse, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		r, err = c.logClient.GetLogLinesV2(project, logstore, req)
@@ -833,6 +898,17 @@ func (c *TokenAutoUpdateClient) GetLogs(project, logstore string, topic string, 
 	maxLineNum int64, offset int64, reverse bool) (r *GetLogsResponse, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		r, err = c.logClient.GetLogs(project, logstore, topic, from, to, queryExp, maxLineNum, offset, reverse)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetLogsByNano(project, logstore string, topic string, fromInNs int64, toInNs int64, queryExp string,
+	maxLineNum int64, offset int64, reverse bool) (r *GetLogsResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		r, err = c.logClient.GetLogsByNano(project, logstore, topic, fromInNs, toInNs, queryExp, maxLineNum, offset, reverse)
 		if !c.processError(err) {
 			return
 		}
@@ -855,6 +931,17 @@ func (c *TokenAutoUpdateClient) GetLogLines(project, logstore string, topic stri
 	maxLineNum int64, offset int64, reverse bool) (r *GetLogLinesResponse, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		r, err = c.logClient.GetLogLines(project, logstore, topic, from, to, queryExp, maxLineNum, offset, reverse)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetLogLinesByNano(project, logstore string, topic string, fromInNs int64, toInNS int64, queryExp string,
+	maxLineNum int64, offset int64, reverse bool) (r *GetLogLinesResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		r, err = c.logClient.GetLogLinesByNano(project, logstore, topic, fromInNs, toInNS, queryExp, maxLineNum, offset, reverse)
 		if !c.processError(err) {
 			return
 		}

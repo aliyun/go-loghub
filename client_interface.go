@@ -5,20 +5,54 @@ import (
 	"time"
 )
 
-// CreateNormalInterface create a normal client
+// CreateNormalInterface create a normal client.
+//
+// Deprecated: use CreateNormalInterfaceV2 instead.
+// If you keep using long-lived AccessKeyID and AccessKeySecret,
+// use the example code below.
+//
+//	  provider := NewStaticCredProvider(accessKeyID, accessKeySecret, securityToken)
+//		client := CreateNormalInterfaceV2(endpoint, provider)
 func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken string) ClientInterface {
 	return &Client{
 		Endpoint:        endpoint,
 		AccessKeyID:     accessKeyID,
 		AccessKeySecret: accessKeySecret,
 		SecurityToken:   securityToken,
+
+		credentialsProvider: NewStaticCredentialsProvider(
+			accessKeyID,
+			accessKeySecret,
+			securityToken,
+		),
 	}
 }
 
-type UpdateTokenFunction func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error)
+// CreateNormalInterfaceV2 create a normal client, with a CredentialsProvider.
+//
+// It is highly recommended to use a CredentialsProvider that provides dynamic
+// expirable credentials for security.
+//
+// See [credentials_provider.go] for more details.
+func CreateNormalInterfaceV2(endpoint string, credentialsProvider CredentialsProvider) ClientInterface {
+	return &Client{
+		Endpoint:            endpoint,
+		credentialsProvider: credentialsProvider,
+	}
+}
 
-// CreateTokenAutoUpdateClient crate a TokenAutoUpdateClient
+type UpdateTokenFunction = func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error)
+
+// CreateTokenAutoUpdateClient create a TokenAutoUpdateClient,
 // this client will auto fetch security token and retry when operation is `Unauthorized`
+//
+// Deprecated: Use CreateNormalInterfaceV2 and UpdateFuncProviderAdapter instead.
+//
+// Example:
+//
+//		provider := NewUpdateFuncProviderAdapter(updateStsTokenFunc)
+//	  client := CreateNormalInterfaceV2(endpoint, provider)
+//
 // @note TokenAutoUpdateClient will destroy when shutdown channel is closed
 func CreateTokenAutoUpdateClient(endpoint string, tokenUpdateFunc UpdateTokenFunction, shutdown <-chan struct{}) (client ClientInterface, err error) {
 	accessKeyID, accessKeySecret, securityToken, expireTime, err := tokenUpdateFunc()
@@ -58,6 +92,8 @@ type ClientInterface interface {
 	// #################### Project Operations #####################
 	// CreateProject create a new loghub project.
 	CreateProject(name, description string) (*LogProject, error)
+	// CreateProject create a new loghub project, with dataRedundancyType option.
+	CreateProjectV2(name, description, dataRedundancyType string) (*LogProject, error)
 	GetProject(name string) (*LogProject, error)
 	// UpdateProject create a new loghub project.
 	UpdateProject(name, description string) (*LogProject, error)
@@ -126,6 +162,7 @@ type ClientInterface interface {
 	ListMachineGroup(project string, offset, size int) (m []string, total int, err error)
 	// ListMachines list all machines in machineGroupName
 	ListMachines(project, machineGroupName string) (ms []*Machine, total int, err error)
+	ListMachinesV2(project, machineGroupName string, offset, size int) (ms []*Machine, total int, err error)
 	// CheckMachineGroupExist check machine group exist or not
 	CheckMachineGroupExist(project string, machineGroup string) (bool, error)
 	// GetMachineGroup retruns machine group according by machine group name.
@@ -200,6 +237,8 @@ type ClientInterface interface {
 	// PostLogStoreLogs put logs into Shard logstore by hashKey.
 	// The callers should transform user logs into LogGroup.
 	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error)
+	// PostRawLogWithCompressType put logs into logstore with specific compress type and hashKey.
+	PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error)
 	// PutLogsWithCompressType put logs into logstore with specific compress type.
 	// The callers should transform user logs into LogGroup.
 	PutLogsWithCompressType(project, logstore string, lg *LogGroup, compressType int) (err error)
@@ -217,18 +256,25 @@ type ClientInterface interface {
 	// The nextCursor is the next curosr can be used to read logs at next time.
 	GetLogsBytes(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (out []byte, nextCursor string, err error)
+	GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error)
 	// PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 	// The logGroupMaxCount is the max number of logGroup could be returned.
 	// The nextCursor is the next cursor can be used to read logs at next time.
 	// @note if you want to pull logs continuous, set endCursor = ""
 	PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error)
+	PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error)
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
 	// GetLogs query logs with [from, to) time range
 	GetLogs(project, logstore string, topic string, from int64, to int64, queryExp string,
 		maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)
 	GetLogLines(project, logstore string, topic string, from int64, to int64, queryExp string,
+		maxLineNum int64, offset int64, reverse bool) (*GetLogLinesResponse, error)
+	// GetLogsByNano query logs with [fromInNs, toInNs) nano time range
+	GetLogsByNano(project, logstore string, topic string, fromInNs int64, toInNs int64, queryExp string,
+		maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)
+	GetLogLinesByNano(project, logstore string, topic string, fromInNs int64, toInNs int64, queryExp string,
 		maxLineNum int64, offset int64, reverse bool) (*GetLogLinesResponse, error)
 
 	GetLogsV2(project, logstore string, req *GetLogRequest) (*GetLogsResponse, error)
@@ -241,6 +287,8 @@ type ClientInterface interface {
 	GetLogsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string, maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)
 	// GetLogsToCompletedV2 query logs with [from, to) time range to completed
 	GetLogsToCompletedV2(project, logstore string, req *GetLogRequest) (*GetLogsResponse, error)
+	// GetLogsToCompletedV3 query logs with [from, to) time range to completed
+	GetLogsToCompletedV3(project, logstore string, req *GetLogRequest) (*GetLogsV3Response, error)
 
 	// #################### Index Operations #####################
 	// CreateIndex ...

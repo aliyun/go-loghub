@@ -119,6 +119,47 @@ func (c *Client) ListMachines(project, machineGroupName string) (ms []*Machine, 
 	return
 }
 
+func (c *Client) ListMachinesV2(project, machineGroupName string, offset, size int) (ms []*Machine, total int, err error) {
+	h := map[string]string{
+		"x-log-bodyrawsize": "0",
+	}
+	uri := fmt.Sprintf("/machinegroups/%v/machines?offset=%v&size=%v", machineGroupName, offset, size)
+	r, err := c.request(project, "GET", uri, h, nil)
+	if err != nil {
+		return
+	}
+	defer r.Body.Close()
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+
+	if r.StatusCode != http.StatusOK {
+		errMsg := &Error{}
+		err = json.Unmarshal(buf, errMsg)
+		if err != nil {
+			err = fmt.Errorf("failed to unmarshal list machines response: %v", err)
+			if IsDebugLevelMatched(1) {
+				dump, _ := httputil.DumpResponse(r, true)
+				level.Error(Logger).Log("msg", string(dump))
+			}
+			return
+		}
+		err = fmt.Errorf("%v:%v", errMsg.Code, errMsg.Message)
+		return
+	}
+
+	body := &MachineList{}
+	err = json.Unmarshal(buf, body)
+	if err != nil {
+		return
+	}
+
+	ms = body.Machines
+	total = body.Total
+	return
+}
+
 // CheckLogstoreExist check logstore exist or not
 func (c *Client) CheckLogstoreExist(project string, logstore string) (bool, error) {
 	proj := convert(c, project)

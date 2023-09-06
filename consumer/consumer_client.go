@@ -127,10 +127,19 @@ func (consumer *ConsumerClient) getCursor(shardId int, from string) (string, err
 
 func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.LogGroupList, nextCursor string, rawSize int, err error) {
 	var logBytes []byte
+	plr := &sls.PullLogRequest{
+		Project:          consumer.option.Project,
+		Logstore:         consumer.option.Logstore,
+		ShardID:          shardId,
+		Query:            consumer.option.Query,
+		Cursor:           cursor,
+		LogGroupMaxCount: consumer.option.MaxFetchLogGroupCount,
+	}
+	if plr.Query != "" {
+		plr.PullMode = "scan_on_stream"
+	}
 	for retry := 0; retry < 3; retry++ {
-		logBytes, nextCursor, err = consumer.client.GetLogsBytes(consumer.option.Project, consumer.option.Logstore, shardId,
-			cursor, "",
-			consumer.option.MaxFetchLogGroupCount)
+		logBytes, nextCursor, err = consumer.client.GetLogsBytesV2(plr)
 		if err == nil {
 			rawSize = len(logBytes)
 			gl, err = sls.LogsBytesDecode(logBytes)

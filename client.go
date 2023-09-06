@@ -96,9 +96,9 @@ func IsTokenError(err error) bool {
 // Client ...
 type Client struct {
 	Endpoint        string // IP or hostname of SLS endpoint
-	AccessKeyID     string
-	AccessKeySecret string
-	SecurityToken   string
+	AccessKeyID     string // Deprecated: use credentialsProvider instead
+	AccessKeySecret string // Deprecated: use credentialsProvider instead
+	SecurityToken   string // Deprecated: use credentialsProvider instead
 	UserAgent       string // default defaultLogUserAgent
 	RequestTimeOut  time.Duration
 	RetryTimeOut    time.Duration
@@ -106,7 +106,12 @@ type Client struct {
 	Region          string
 	AuthVersion     AuthVersionType //  v1 or v4 signature,default is v1
 
-	accessKeyLock sync.RWMutex
+	accessKeyLock       sync.RWMutex
+	credentialsProvider CredentialsProvider
+	// User defined common headers.
+	// When conflict with sdk pre-defined headers, the value will
+	// be ignored
+	CommonHeaders map[string]string
 }
 
 func convert(c *Client, projName string) *LogProject {
@@ -116,11 +121,18 @@ func convert(c *Client, projName string) *LogProject {
 }
 
 func convertLocked(c *Client, projName string) *LogProject {
-	p, _ := NewLogProject(projName, c.Endpoint, c.AccessKeyID, c.AccessKeySecret)
+	var p *LogProject
+	if c.credentialsProvider != nil {
+		p, _ = NewLogProjectV2(projName, c.Endpoint, c.credentialsProvider)
+	} else { // back compatible
+		p, _ = NewLogProject(projName, c.Endpoint, c.AccessKeyID, c.AccessKeySecret)
+	}
+
 	p.SecurityToken = c.SecurityToken
 	p.UserAgent = c.UserAgent
 	p.AuthVersion = c.AuthVersion
 	p.Region = c.Region
+	p.CommonHeaders = c.CommonHeaders
 	if c.HTTPClient != nil {
 		p.httpClient = c.HTTPClient
 	}
@@ -132,6 +144,12 @@ func convertLocked(c *Client, projName string) *LogProject {
 	}
 
 	return p
+}
+
+// Set credentialsProvider for client and returns the same client.
+func (c *Client) WithCredentialsProvider(provider CredentialsProvider) *Client {
+	c.credentialsProvider = provider
+	return c
 }
 
 // SetUserAgent set a custom userAgent
@@ -164,18 +182,26 @@ func (c *Client) ResetAccessKeyToken(accessKeyID, accessKeySecret, securityToken
 	c.AccessKeyID = accessKeyID
 	c.AccessKeySecret = accessKeySecret
 	c.SecurityToken = securityToken
+	c.credentialsProvider = NewStaticCredentialsProvider(accessKeyID, accessKeySecret, securityToken)
 	c.accessKeyLock.Unlock()
 }
 
 // CreateProject create a new loghub project.
 func (c *Client) CreateProject(name, description string) (*LogProject, error) {
+	return c.CreateProjectV2(name, description, "")
+}
+
+// CreateProjectV2 create a new loghub project, with dataRedundancyType option.
+func (c *Client) CreateProjectV2(name, description, dataRedundancyType string) (*LogProject, error) {
 	type Body struct {
-		ProjectName string `json:"projectName"`
-		Description string `json:"description"`
+		ProjectName        string `json:"projectName"`
+		Description        string `json:"description"`
+		DataRedundancyType string `json:"dataRedundancyType,omitempty"`
 	}
 	body, err := json.Marshal(Body{
-		ProjectName: name,
-		Description: description,
+		ProjectName:        name,
+		Description:        description,
+		DataRedundancyType: dataRedundancyType,
 	})
 	if err != nil {
 		return nil, err

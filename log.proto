@@ -19,6 +19,8 @@ message Log
     
     repeated LogContent Contents= 2;
 
+    optional fixed32 TimeNs = 4;
+
 }
 message LogTag
 {

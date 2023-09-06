@@ -1,6 +1,8 @@
 package producer
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,11 @@ type ProducerBatch struct {
 	maxReservedAttempts  int
 }
 
+func generatePackId(source string) string {
+	srcData := source + time.Now().String()
+	return ToMd5(srcData)[0:16]
+}
+
 func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
 	logs := []*sls.Log{}
 
@@ -38,9 +45,23 @@ func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logs
 	}
 
 	logGroup := &sls.LogGroup{
-		Logs:   logs,
-		Topic:  proto.String(logTopic),
-		Source: proto.String(logSource),
+		Logs:    logs,
+		LogTags: config.LogTags,
+		Topic:   proto.String(logTopic),
+		Source:  proto.String(logSource),
+	}
+	if config.GeneratePackId {
+		config.packLock.Lock()
+		if config.packPrefix == "" {
+			config.packPrefix = strings.ToUpper(generatePackId(logSource)) + "-"
+		}
+		packStr := config.packPrefix + fmt.Sprintf("%X", config.packNumber)
+		logGroup.LogTags = append(logGroup.LogTags, &sls.LogTag{
+			Key:   proto.String("__pack_id__"),
+			Value: proto.String(packStr),
+		})
+		config.packNumber++
+		config.packLock.Unlock()
 	}
 	currentTimeMs := GetTimeMs(time.Now().UnixNano())
 	producerBatch := &ProducerBatch{

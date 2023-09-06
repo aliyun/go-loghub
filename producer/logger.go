@@ -5,24 +5,34 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
+	"io"
 )
 
 func logConfig(producerConfig *ProducerConfig) log.Logger {
-	var logger log.Logger
-
+	var writer io.Writer
 	if producerConfig.LogFileName == "" {
-		if producerConfig.IsJsonType {
-			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stdout))
-		} else {
-			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
-		}
+		writer = log.NewSyncWriter(os.Stdout)
 	} else {
-		if producerConfig.IsJsonType {
-			logger = log.NewLogfmtLogger(initLogFlusher(producerConfig))
-		} else {
-			logger = log.NewJSONLogger(initLogFlusher(producerConfig))
+		if producerConfig.LogMaxSize == 0 {
+			producerConfig.LogMaxSize = 10
+		}
+		if producerConfig.LogMaxBackups == 0 {
+			producerConfig.LogMaxBackups = 10
+		}
+		writer = &lumberjack.Logger{
+			Filename:   producerConfig.LogFileName,
+			MaxSize:    producerConfig.LogMaxSize,
+			MaxBackups: producerConfig.LogMaxBackups,
+			Compress:   producerConfig.LogCompress,
 		}
 	}
+	var logger log.Logger
+	if producerConfig.IsJsonType {
+		logger = log.NewJSONLogger(writer)
+	} else {
+		logger = log.NewLogfmtLogger(writer)
+	}
+
 	switch producerConfig.AllowLogLevel {
 	case "debug":
 		logger = level.NewFilter(logger, level.AllowDebug())
@@ -37,19 +47,4 @@ func logConfig(producerConfig *ProducerConfig) log.Logger {
 	}
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
-}
-
-func initLogFlusher(producerConfig *ProducerConfig) *lumberjack.Logger {
-	if producerConfig.LogMaxSize == 0 {
-		producerConfig.LogMaxSize = 10
-	}
-	if producerConfig.LogMaxBackups == 0 {
-		producerConfig.LogMaxBackups = 10
-	}
-	return &lumberjack.Logger{
-		Filename:   producerConfig.LogFileName,
-		MaxSize:    producerConfig.LogMaxSize,
-		MaxBackups: producerConfig.LogMaxBackups,
-		Compress:   producerConfig.LogCompress,
-	}
 }

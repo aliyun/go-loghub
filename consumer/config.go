@@ -9,6 +9,7 @@ type LogHubConfig struct {
 	//:param SecurityToken: If you use sts token to consume data, you must make sure consumer will be stopped before this token expired.
 	//:param Project:
 	//:param Logstore:
+	//:param Query:
 	//:param ConsumerGroupName:
 	//:param ConsumerName:
 	//:param CursorPosition: This options is used for initialization, will be ignored once consumer group is created and each shard has beeen started to be consumed.
@@ -43,6 +44,7 @@ type LogHubConfig struct {
 	AccessKeySecret           string
 	Project                   string
 	Logstore                  string
+	Query                     string
 	ConsumerGroupName         string
 	ConsumerName              string
 	CursorPosition            string

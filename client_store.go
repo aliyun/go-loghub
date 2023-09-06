@@ -103,6 +103,15 @@ func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKe
 	return ls.PostLogStoreLogs(lg, hashKey)
 }
 
+// PostRawLogWithCompressType put raw log data to log service, no marshal
+func (c *Client) PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error) {
+	ls := convertLogstore(c, project, logstore)
+	if err := ls.SetPutLogCompressType(compressType); err != nil {
+		return err
+	}
+	return ls.PostRawLogs(rawLogData, hashKey)
+}
+
 // PutLogsWithCompressType put logs into logstore with specific compress type.
 // The callers should transform user logs into LogGroup.
 func (c *Client) PutLogsWithCompressType(project, logstore string, lg *LogGroup, compressType int) (err error) {
@@ -177,8 +186,20 @@ func (c *Client) GetPrevCursorTime(project, logstore string, shardID int, cursor
 // The nextCursor is the next curosr can be used to read logs at next time.
 func (c *Client) GetLogsBytes(project, logstore string, shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (out []byte, nextCursor string, err error) {
-	ls := convertLogstore(c, project, logstore)
-	return ls.GetLogsBytes(shardID, cursor, endCursor, logGroupMaxCount)
+	plr := &PullLogRequest{
+		Project:          project,
+		Logstore:         logstore,
+		ShardID:          shardID,
+		Cursor:           cursor,
+		EndCursor:        endCursor,
+		LogGroupMaxCount: logGroupMaxCount,
+	}
+	return c.GetLogsBytesV2(plr)
+}
+
+func (c *Client) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.GetLogsBytesV2(plr)
 }
 
 // PullLogs gets logs from shard specified by shardId according cursor and endCursor.
@@ -189,6 +210,11 @@ func (c *Client) PullLogs(project, logstore string, shardID int, cursor, endCurs
 	logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error) {
 	ls := convertLogstore(c, project, logstore)
 	return ls.PullLogs(shardID, cursor, endCursor, logGroupMaxCount)
+}
+
+func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.PullLogsV2(plr)
 }
 
 // GetHistograms query logs with [from, to) time range
@@ -210,6 +236,12 @@ func (c *Client) GetLogs(project, logstore string, topic string, from int64, to 
 	return ls.GetLogs(topic, from, to, queryExp, maxLineNum, offset, reverse)
 }
 
+func (c *Client) GetLogsByNano(project, logstore string, topic string, fromInNs int64, toInNs int64, queryExp string,
+	maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error) {
+	ls := convertLogstore(c, project, logstore)
+	return ls.GetLogsByNano(topic, fromInNs, toInNs, queryExp, maxLineNum, offset, reverse)
+}
+
 // GetLogsToCompleted query logs with [from, to) time range to completed
 func (c *Client) GetLogsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string,
 	maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error) {
@@ -222,6 +254,12 @@ func (c *Client) GetLogLines(project, logstore string, topic string, from int64,
 	maxLineNum int64, offset int64, reverse bool) (*GetLogLinesResponse, error) {
 	ls := convertLogstore(c, project, logstore)
 	return ls.GetLogLines(topic, from, to, queryExp, maxLineNum, offset, reverse)
+}
+
+func (c *Client) GetLogLinesByNano(project, logstore string, topic string, fromInNs int64, toInNs int64, queryExp string,
+	maxLineNum int64, offset int64, reverse bool) (*GetLogLinesResponse, error) {
+	ls := convertLogstore(c, project, logstore)
+	return ls.GetLogLinesByNano(topic, fromInNs, toInNs, queryExp, maxLineNum, offset, reverse)
 }
 
 // GetLogsV2 ...
@@ -240,6 +278,12 @@ func (c *Client) GetLogsV3(project, logstore string, req *GetLogRequest) (*GetLo
 func (c *Client) GetLogsToCompletedV2(project, logstore string, req *GetLogRequest) (*GetLogsResponse, error) {
 	ls := convertLogstore(c, project, logstore)
 	return ls.GetLogsToCompletedV2(req)
+}
+
+// GetLogsToCompletedV3 ...
+func (c *Client) GetLogsToCompletedV3(project, logstore string, req *GetLogRequest) (*GetLogsV3Response, error) {
+	ls := convertLogstore(c, project, logstore)
+	return ls.GetLogsToCompletedV3(req)
 }
 
 // GetLogLinesV2 ...

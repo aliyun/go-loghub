@@ -286,6 +286,7 @@ func (s *LogstoreTestSuite) TestGetLogs() {
 	time.Sleep(5 * time.Second)
 	endTime := uint32(time.Now().Unix())
 
+	time.Sleep(5 * time.Second)
 	hResp, hErr := s.Logstore.GetHistograms("", int64(beginTime), int64(endTime), "InternalServerError")
 	s.Nil(hErr)
 	if hErr != nil {

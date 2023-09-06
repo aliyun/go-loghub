@@ -153,9 +153,23 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 		headers[HTTPHeaderUserAgent] = DefaultLogUserAgent
 	}
 
+	stsToken := project.SecurityToken
+	accessKeyID := project.AccessKeyID
+	accessKeySecret := project.AccessKeySecret
+
+	if project.credentialProvider != nil {
+		c, err := project.credentialProvider.GetCredentials()
+		if err != nil {
+			return nil, NewClientError(fmt.Errorf("fail to get credentials: %w", err))
+		}
+		stsToken = c.SecurityToken
+		accessKeyID = c.AccessKeyID
+		accessKeySecret = c.AccessKeySecret
+	}
+
 	// Access with token
-	if project.SecurityToken != "" {
-		headers[HTTPHeaderAcsSecurityToken] = project.SecurityToken
+	if stsToken != "" {
+		headers[HTTPHeaderAcsSecurityToken] = stsToken
 	}
 
 	if body != nil {
@@ -167,14 +181,21 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 	var signer Signer
 	if project.AuthVersion == AuthV4 {
 		headers[HTTPHeaderLogDate] = dateTimeISO8601()
-		signer = NewSignerV4(project.AccessKeyID, project.AccessKeySecret, project.Region)
+		signer = NewSignerV4(accessKeyID, accessKeySecret, project.Region)
 	} else {
 		headers[HTTPHeaderDate] = nowRFC1123()
-		signer = NewSignerV1(project.AccessKeyID, project.AccessKeySecret)
+		signer = NewSignerV1(accessKeyID, accessKeySecret)
 	}
 	if err := signer.Sign(method, uri, headers, body); err != nil {
 		return nil, err
 	}
+
+	for k, v := range project.CommonHeaders {
+		if _, ok := headers[k]; !ok {
+			headers[k] = v
+		}
+	}
+
 	// Initialize http request
 	reader := bytes.NewReader(body)
 

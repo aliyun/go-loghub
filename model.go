@@ -10,14 +10,16 @@ import (
 
 // GetLogRequest for GetLogsV2
 type GetLogRequest struct {
-	From     int64  `json:"from"`  // unix time, eg time.Now().Unix() - 900
-	To       int64  `json:"to"`    // unix time, eg time.Now().Unix()
-	Topic    string `json:"topic"` // @note topic is not used anymore, use __topic__ : xxx in query instead
-	Lines    int64  `json:"lines"` // max 100; offset, lines and reverse is ignored when use SQL in query
-	Offset   int64  `json:"offset"`
-	Reverse  bool   `json:"reverse"`
-	Query    string `json:"query"`
-	PowerSQL bool   `json:"powerSql"`
+	From       int64  `json:"from"`  // unix time, eg time.Now().Unix() - 900
+	To         int64  `json:"to"`    // unix time, eg time.Now().Unix()
+	Topic      string `json:"topic"` // @note topic is not used anymore, use __topic__ : xxx in query instead
+	Lines      int64  `json:"line"`  // max 100; offset, lines and reverse is ignored when use SQL in query
+	Offset     int64  `json:"offset"`
+	Reverse    bool   `json:"reverse"`
+	Query      string `json:"query"`
+	PowerSQL   bool   `json:"powerSql"`
+	FromNsPart int32  `json:"fromNs"`
+	ToNsPart   int32  `json:"toNs"`
 }
 
 func (glr *GetLogRequest) ToURLParams() url.Values {
@@ -31,6 +33,37 @@ func (glr *GetLogRequest) ToURLParams() url.Values {
 	urlVal.Add("reverse", strconv.FormatBool(glr.Reverse))
 	urlVal.Add("powerSql", strconv.FormatBool(glr.PowerSQL))
 	urlVal.Add("query", glr.Query)
+	urlVal.Add("fromNs", strconv.Itoa(int(glr.FromNsPart)))
+	urlVal.Add("toNs", strconv.Itoa(int(glr.ToNsPart)))
+	return urlVal
+}
+
+type PullLogRequest struct {
+	Project          string
+	Logstore         string
+	ShardID          int
+	Cursor           string
+	EndCursor        string
+	LogGroupMaxCount int
+	Query            string
+	PullMode         string
+}
+
+func (plr *PullLogRequest) ToURLParams() url.Values {
+	urlVal := url.Values{}
+	urlVal.Add("type", "logs")
+	urlVal.Add("cursor", plr.Cursor)
+	urlVal.Add("count", strconv.Itoa(plr.LogGroupMaxCount))
+	if plr.EndCursor != "" {
+		urlVal.Add("end_cursor", plr.EndCursor)
+	}
+	if plr.Query != "" {
+		urlVal.Add("query", plr.Query)
+	}
+	if plr.PullMode != "" {
+		urlVal.Add("pullMode", plr.PullMode)
+	}
+
 	return urlVal
 }
 
@@ -62,6 +95,17 @@ type GetLogsResponse struct {
 	Header   http.Header         `json:"header"`
 }
 
+type MetaTerm struct {
+	Key  string `json:"key"`
+	Term string `json:"term"`
+}
+type PhraseQueryInfoV3 struct {
+	ScanAll     *bool  `json:"scanAll,omitempty"`
+	BeginOffset *int64 `json:"beginOffset,omitempty"`
+	EndOffset   *int64 `json:"endOffset,omitempty"`
+	EndTime     *int64 `json:"endTime,omitempty"`
+}
+
 type GetLogsV3ResponseMeta struct {
 	Progress           string  `json:"progress"`
 	AggQuery           string  `json:"aggQuery"`
@@ -73,12 +117,98 @@ type GetLogsV3ResponseMeta struct {
 	CpuCores           float64 `json:"cpuCores"`
 	Limited            int64   `json:"limited"`
 	Count              int64   `json:"count"`
+	ProcessedBytes     int64   `json:"processedBytes"`
+	TelemetryType      string  `json:"telementryType"` // telementryType, ignore typo
+	PowerSql           bool    `json:"powerSql"`
+	InsertedSql        string  `json:"insertedSQL"`
+
+	Keys            []string            `json:"keys,omitempty"`
+	Terms           []MetaTerm          `json:"terms,omitempty"`
+	Marker          *string             `json:"marker,omitempty"`
+	Mode            *int                `json:"mode,omitempty"`
+	PhraseQueryInfo *PhraseQueryInfoV3  `json:"phraseQueryInfo,omitempty"`
+	Shard           *int                `json:"shard,omitempty"`
+	ScanBytes       *int64              `json:"scanBytes,omitempty"`
+	IsAccurate      *bool               `json:"isAccurate,omitempty"`
+	ColumnTypes     []string            `json:"columnTypes,omitempty"`
+	Highlights      []map[string]string `json:"highlights,omitempty"`
+}
+
+type PhraseQueryInfoV2 struct {
+	ScanAll     string `json:"scanAll,omitempty"`
+	BeginOffset string `json:"beginOffset,omitempty"`
+	EndOffset   string `json:"endOffset,omitempty"`
+	EndTime     string `json:"endTime,omitempty"`
+}
+
+func (s *PhraseQueryInfoV3) toPhraseQueryInfoV2() *PhraseQueryInfoV2 {
+	if s == nil {
+		return nil
+	}
+	return &PhraseQueryInfoV2{
+		ScanAll:     BoolPtrToStringNum(s.ScanAll),
+		BeginOffset: Int64PtrToString(s.BeginOffset),
+		EndOffset:   Int64PtrToString(s.EndOffset),
+		EndTime:     Int64PtrToString(s.EndTime),
+	}
+}
+
+type QueryInfoV2 struct {
+	Keys            []string            `json:"keys,omitempty"`
+	Terms           [][]string          `json:"terms,omitempty"` // [[term, key], [term2, key2]]
+	Limited         string              `json:"limited,omitempty"`
+	Marker          *string             `json:"marker,omitempty"`
+	Mode            *int                `json:"mode,omitempty"`
+	PhraseQueryInfo *PhraseQueryInfoV2  `json:"phraseQueryInfo,omitempty"`
+	Shard           *int                `json:"shard,omitempty"`
+	ScanBytes       *int64              `json:"scanBytes,omitempty"`
+	IsAccurate      *int64              `json:"isAccurate,omitempty"`
+	ColumnTypes     []string            `json:"columnTypes,omitempty"`
+	Highlights      []map[string]string `json:"highlight,omitempty"`
+}
+
+func (meta *GetLogsV3ResponseMeta) constructQueryInfo() (string, error) {
+	var terms [][]string
+	for _, term := range meta.Terms {
+		terms = append(terms, []string{term.Term, term.Key})
+	}
+	var isAccurate *int64
+	if meta.IsAccurate != nil {
+		res := BoolToInt64(*meta.IsAccurate)
+		isAccurate = &res
+	}
+	limited := ""
+	if meta.Limited != 0 {
+		limited = strconv.FormatInt(meta.Limited, 10)
+	}
+	queryInfo := &QueryInfoV2{
+		Keys:            meta.Keys,
+		Terms:           terms,
+		Limited:         limited,
+		Marker:          meta.Marker,
+		Mode:            meta.Mode,
+		PhraseQueryInfo: meta.PhraseQueryInfo.toPhraseQueryInfoV2(),
+		Shard:           meta.Shard,
+		ScanBytes:       meta.ScanBytes,
+		IsAccurate:      isAccurate,
+		ColumnTypes:     meta.ColumnTypes,
+		Highlights:      meta.Highlights,
+	}
+	contents, err := json.Marshal(queryInfo)
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
 }
 
 // GetLogsV3Response defines response from GetLogs call
 type GetLogsV3Response struct {
 	Meta GetLogsV3ResponseMeta `json:"meta"`
 	Logs []map[string]string   `json:"data"`
+}
+
+func (resp *GetLogsV3Response) IsComplete() bool {
+	return strings.ToLower(resp.Meta.Progress) == "complete"
 }
 
 // GetLogLinesResponse defines response from GetLogLines call

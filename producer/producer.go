@@ -32,15 +32,11 @@ type Producer struct {
 func InitProducer(producerConfig *ProducerConfig) *Producer {
 	logger := logConfig(producerConfig)
 
-	client := sls.CreateNormalInterface(producerConfig.Endpoint, producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
-	if producerConfig.UpdateStsToken != nil && producerConfig.StsTokenShutDown != nil {
-		stsClient, err := sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
-		if err != nil {
-			level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
-		} else {
-			client = stsClient
-		}
+	client, err := createClient(producerConfig)
+	if err != nil {
+		level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
 	}
+
 	if producerConfig.HTTPClient != nil {
 		client.SetHTTPClient(producerConfig.HTTPClient)
 	}
@@ -73,6 +69,20 @@ func InitProducer(producerConfig *ProducerConfig) *Producer {
 	producer.ioThreadPoolWaitGroup = &sync.WaitGroup{}
 	producer.logger = logger
 	return producer
+}
+
+func createClient(producerConfig *ProducerConfig) (sls.ClientInterface, error) {
+	// use CredentialsProvider
+	if producerConfig.CredentialsProvider != nil {
+		return sls.CreateNormalInterfaceV2(producerConfig.Endpoint, producerConfig.CredentialsProvider), nil
+	}
+	// use UpdateStsTokenFunc
+	if producerConfig.UpdateStsToken != nil && producerConfig.StsTokenShutDown != nil {
+		return sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
+	}
+	// fallback to default static long-lived AK
+	staticProvider := sls.NewStaticCredentialsProvider(producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
+	return sls.CreateNormalInterfaceV2(producerConfig.Endpoint, staticProvider), nil
 }
 
 func validateProducerConfig(producerConfig *ProducerConfig) *ProducerConfig {

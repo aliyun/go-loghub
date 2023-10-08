@@ -39,6 +39,7 @@ const DefaultLogUserAgent = "golang-sdk-v0.1.0"
 type AuthVersionType string
 
 const (
+	AuthV0 AuthVersionType = "v0"
 	// AuthV1 v1
 	AuthV1 AuthVersionType = "v1"
 	// AuthV4 v4
@@ -112,6 +113,7 @@ type Client struct {
 	// When conflict with sdk pre-defined headers, the value will
 	// be ignored
 	CommonHeaders map[string]string
+	KeyProvider   string
 }
 
 func convert(c *Client, projName string) *LogProject {
@@ -133,6 +135,7 @@ func convertLocked(c *Client, projName string) *LogProject {
 	p.AuthVersion = c.AuthVersion
 	p.Region = c.Region
 	p.CommonHeaders = c.CommonHeaders
+	p.KeyProvider = c.KeyProvider
 	if c.HTTPClient != nil {
 		p.httpClient = c.HTTPClient
 	}

@@ -178,10 +178,15 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 		}
 	}
 
+	if project.KeyProvider != "" && project.AuthVersion != AuthV4 {
+		headers["x-log-keyprovider"] = project.KeyProvider
+	}
 	var signer Signer
 	if project.AuthVersion == AuthV4 {
 		headers[HTTPHeaderLogDate] = dateTimeISO8601()
 		signer = NewSignerV4(accessKeyID, accessKeySecret, project.Region)
+	} else if project.AuthVersion == AuthV0 {
+		signer = NewSignerV0()
 	} else {
 		headers[HTTPHeaderDate] = nowRFC1123()
 		signer = NewSignerV1(accessKeyID, accessKeySecret)
@@ -190,11 +195,7 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 		return nil, err
 	}
 
-	for k, v := range project.CommonHeaders {
-		if _, ok := headers[k]; !ok {
-			headers[k] = v
-		}
-	}
+	addHeadersAfterSign(project.CommonHeaders, headers)
 
 	// Initialize http request
 	reader := bytes.NewReader(body)

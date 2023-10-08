@@ -61,7 +61,8 @@ type LogProject struct {
 	//
 	// When conflict with sdk pre-defined headers, the value will
 	// be ignored
-	CommonHeaders      map[string]string
+	CommonHeaders map[string]string
+	KeyProvider   string
 }
 
 // NewLogProject creates a new SLS project.

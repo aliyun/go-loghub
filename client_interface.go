@@ -367,7 +367,7 @@ type ClientInterface interface {
 		nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error)
 	// TagResourcesSystemTags tag specific resource
 	TagResourcesSystemTags(project string, tags *ResourceSystemTags) error
-	// TagResourcesSystemTags untag specific resource
+	// UnTagResourcesSystemTags untag specific resource
 	UnTagResourcesSystemTags(project string, tags *ResourceUnSystemTags) error
 	// ListSystemTagResources list system tag resources
 	ListSystemTagResources(project string,

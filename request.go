@@ -178,8 +178,8 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 		}
 	}
 
-	if project.KeyProvider != "" && project.AuthVersion != AuthV4 {
-		headers["x-log-keyprovider"] = project.KeyProvider
+	for k, v := range project.InnerHeaders {
+		headers[k] = v
 	}
 	var signer Signer
 	if project.AuthVersion == AuthV4 {

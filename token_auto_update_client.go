@@ -1432,6 +1432,17 @@ func (c *TokenAutoUpdateClient) TagResources(project string, tags *ResourceTags)
 	return
 }
 
+// TagResourcesSystemTags tag specific resource
+func (c *TokenAutoUpdateClient) TagResourcesSystemTags(project string, tags *ResourceSystemTags) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.TagResourcesSystemTags(project, tags)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 // UnTagResources untag specific resource
 func (c *TokenAutoUpdateClient) UnTagResources(project string, tags *ResourceUnTags) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
@@ -1443,7 +1454,18 @@ func (c *TokenAutoUpdateClient) UnTagResources(project string, tags *ResourceUnT
 	return
 }
 
-// ListTagResources list rag resources
+// UnTagResourcesSystemTags untag specific resource
+func (c *TokenAutoUpdateClient) UnTagResourcesSystemTags(project string, tags *ResourceUnSystemTags) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.UnTagResourcesSystemTags(project, tags)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+// ListTagResources list tag resources
 func (c *TokenAutoUpdateClient) ListTagResources(project string,
 	resourceType string,
 	resourceIDs []string,
@@ -1451,6 +1473,24 @@ func (c *TokenAutoUpdateClient) ListTagResources(project string,
 	nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		respTags, respNextToken, err = c.logClient.ListTagResources(project, resourceType, resourceIDs, tags, nextToken)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+// ListSystemTagResources list system tag resources
+func (c *TokenAutoUpdateClient) ListSystemTagResources(project string,
+	resourceType string,
+	resourceIDs []string,
+	tags []ResourceFilterTag,
+	tagOwnerUid string,
+	category string,
+	scope string,
+	nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		respTags, respNextToken, err = c.logClient.ListSystemTagResources(project, resourceType, resourceIDs, tags, tagOwnerUid, category, scope, nextToken)
 		if !c.processError(err) {
 			return
 		}

@@ -365,6 +365,19 @@ type ClientInterface interface {
 		resourceIDs []string,
 		tags []ResourceFilterTag,
 		nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error)
+	// TagResourcesSystemTags tag specific resource
+	TagResourcesSystemTags(project string, tags *ResourceSystemTags) error
+	// TagResourcesSystemTags untag specific resource
+	UnTagResourcesSystemTags(project string, tags *ResourceUnSystemTags) error
+	// ListSystemTagResources list system tag resources
+	ListSystemTagResources(project string,
+		resourceType string,
+		resourceIDs []string,
+		tags []ResourceFilterTag,
+		tagOwnerUid string,
+		category string,
+		scope string,
+		nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error)
 	CreateScheduledSQL(project string, scheduledsql *ScheduledSQL) error
 	DeleteScheduledSQL(project string, name string) error
 	UpdateScheduledSQL(project string, scheduledsql *ScheduledSQL) error

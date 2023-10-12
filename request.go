@@ -231,6 +231,7 @@ func realRequest(ctx context.Context, project *LogProject, method, uri string, h
 		if ioErr != nil {
 			return nil, NewBadResponseError(ioErr.Error(), resp.Header, resp.StatusCode)
 		}
+		println(string(buf))
 		if jErr := json.Unmarshal(buf, err); jErr != nil {
 			return nil, NewBadResponseError(string(buf), resp.Header, resp.StatusCode)
 		}

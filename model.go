@@ -21,6 +21,7 @@ type GetLogRequest struct {
 	FromNsPart    int32  `json:"fromNs"`
 	ToNsPart      int32  `json:"toNs"`
 	NeedHighlight bool   `json:"highlight"`
+	IsAccurate    bool   `json:"accurate"`
 }
 
 func (glr *GetLogRequest) ToURLParams() url.Values {
@@ -36,6 +37,8 @@ func (glr *GetLogRequest) ToURLParams() url.Values {
 	urlVal.Add("query", glr.Query)
 	urlVal.Add("fromNs", strconv.Itoa(int(glr.FromNsPart)))
 	urlVal.Add("toNs", strconv.Itoa(int(glr.ToNsPart)))
+	urlVal.Add("highlight", strconv.FormatBool(glr.NeedHighlight))
+	urlVal.Add("accurate", strconv.FormatBool(glr.IsAccurate))
 	return urlVal
 }
 

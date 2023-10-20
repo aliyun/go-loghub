@@ -18,9 +18,10 @@ func (c *Client) ListLogStore(project string) ([]string, error) {
 }
 
 // ListLogStoreV2 list logstores with params :
-//                offset: start offset
-//                size: max return size
-//                telemetryType : telemetry type filter
+//
+//	offset: start offset
+//	size: max return size
+//	telemetryType : telemetry type filter
 func (c *Client) ListLogStoreV2(project string, offset, size int, telemetryType string) ([]string, error) {
 	proj := convert(c, project)
 	return proj.ListLogStoreV2(offset, size, telemetryType)
@@ -67,6 +68,19 @@ func (c *Client) UpdateLogStore(project string, logstore string, ttl, shardCnt i
 func (c *Client) UpdateLogStoreV2(project string, logstore *LogStore) (err error) {
 	proj := convert(c, project)
 	return proj.UpdateLogStoreV2(logstore)
+}
+
+// GetLogStoreMeteringMode get the metering mode of logstore, eg. ChargeByFunction / ChargeByDataIngest
+func (c *Client) GetLogStoreMeteringMode(project string, logstore string) (*GetMeteringModeResponse, error) {
+	ls := convertLogstore(c, project, logstore)
+	return ls.GetMeteringMode()
+}
+
+// GetLogStoreMeteringMode update the metering mode of logstore, eg. ChargeByFunction / ChargeByDataIngest
+// Warning: this method may affect your billings, for more details ref: https://www.aliyun.com/price/detail/sls
+func (c *Client) UpdateLogStoreMeteringMode(project string, logstore string, meteringMode string) error {
+	ls := convertLogstore(c, project, logstore)
+	return ls.UpdateMeteringMode(meteringMode)
 }
 
 // ListMachineGroup returns machine group name list and the total number of machine groups.

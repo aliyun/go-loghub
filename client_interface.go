@@ -133,6 +133,12 @@ type ClientInterface interface {
 	UpdateLogStoreV2(project string, logstore *LogStore) error
 	// CheckLogstoreExist check logstore exist or not
 	CheckLogstoreExist(project string, logstore string) (bool, error)
+	// GetLogStoreMeteringMode get the metering mode of logstore, eg. ChargeByFunction / ChargeByDataIngest
+	GetLogStoreMeteringMode(project string, logstore string) (*GetMeteringModeResponse, error)
+	// GetLogStoreMeteringMode update the metering mode of logstore, eg. ChargeByFunction / ChargeByDataIngest
+	//
+	// Warning: this method may affect your billings, for more details ref: https://www.aliyun.com/price/detail/sls
+	UpdateLogStoreMeteringMode(project string, logstore string, meteringMode string) error
 
 	// #################### MetricStore Operations #####################
 	// CreateMetricStore creates a new metric store in SLS.
@@ -358,6 +364,19 @@ type ClientInterface interface {
 		resourceType string,
 		resourceIDs []string,
 		tags []ResourceFilterTag,
+		nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error)
+	// TagResourcesSystemTags tag specific resource
+	TagResourcesSystemTags(project string, tags *ResourceSystemTags) error
+	// UnTagResourcesSystemTags untag specific resource
+	UnTagResourcesSystemTags(project string, tags *ResourceUnSystemTags) error
+	// ListSystemTagResources list system tag resources
+	ListSystemTagResources(project string,
+		resourceType string,
+		resourceIDs []string,
+		tags []ResourceFilterTag,
+		tagOwnerUid string,
+		category string,
+		scope string,
 		nextToken string) (respTags []*ResourceTagResponse, respNextToken string, err error)
 	CreateScheduledSQL(project string, scheduledsql *ScheduledSQL) error
 	DeleteScheduledSQL(project string, name string) error

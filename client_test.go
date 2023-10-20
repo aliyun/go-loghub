@@ -88,3 +88,22 @@ func (s *ClientTestSuite) TestClientCommonHeader() {
 	s.Require().NoError(err)
 	fmt.Println(len(stores))
 }
+
+func (s *ClientTestSuite) TestMeteringMode() {
+
+	res, err := s.client.GetLogStoreMeteringMode(s.env.ProjectName, s.env.LogstoreName)
+	s.Require().NoError(err)
+	s.Require().Equal(CHARGE_BY_FUNCTION, res.MeteringMode)
+	// change to data ingest
+	err = s.client.UpdateLogStoreMeteringMode(s.env.ProjectName, s.env.LogstoreName, CHARGE_BY_DATA_INGEST)
+	s.Require().NoError(err)
+	res, err = s.client.GetLogStoreMeteringMode(s.env.ProjectName, s.env.LogstoreName)
+	s.Require().NoError(err)
+	s.Require().Equal(CHARGE_BY_DATA_INGEST, res.MeteringMode)
+	// change back
+	err = s.client.UpdateLogStoreMeteringMode(s.env.ProjectName, s.env.LogstoreName, CHARGE_BY_FUNCTION)
+	s.Require().NoError(err)
+	res, err = s.client.GetLogStoreMeteringMode(s.env.ProjectName, s.env.LogstoreName)
+	s.Require().NoError(err)
+	s.Require().Equal(CHARGE_BY_FUNCTION, res.MeteringMode)
+}

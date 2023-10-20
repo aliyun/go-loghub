@@ -1076,3 +1076,53 @@ func (s *LogStore) CheckIndexExist() (bool, error) {
 
 	return true, nil
 }
+
+func (s *LogStore) GetMeteringMode() (*GetMeteringModeResponse, error) {
+	h := map[string]string{
+		"x-log-bodyrawsize": "0",
+		"Content-Type":      "application/json",
+	}
+	uri := fmt.Sprintf("/logstores/%s/meteringmode", s.Name)
+	r, err := request(s.project, "GET", uri, h, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, NewBadResponseError("", r.Header, r.StatusCode)
+	}
+	res := GetMeteringModeResponse{}
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return nil, NewBadResponseError(string(data), r.Header, r.StatusCode)
+
+	}
+	return &res, nil
+
+}
+
+func (s *LogStore) UpdateMeteringMode(meteringMode string) error {
+
+	body := map[string]string{
+		"meteringMode": meteringMode,
+	}
+	uri := fmt.Sprintf("/logstores/%s/meteringmode", s.Name)
+	requestBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("cant marshal body:%w", err)
+	}
+
+	h := map[string]string{
+		"Content-Type":      "application/json",
+		"x-log-bodyrawsize": strconv.Itoa(len(requestBody)),
+	}
+
+	r, err := request(s.project, "PUT", uri, h, requestBody)
+
+	if err != nil {
+		r.Body.Close()
+		return err
+	}
+	return nil
+}

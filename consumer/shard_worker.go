@@ -7,12 +7,13 @@ import (
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	uberAtomic "go.uber.org/atomic"
 )
 
 type ShardConsumerWorker struct {
 	client                    *ConsumerClient
 	consumerCheckPointTracker *DefaultCheckPointTracker
-	shutdownFlag              bool
+	shutdownFlag              *uberAtomic.Bool
 	lastFetchLogGroupList     *sls.LogGroupList
 	nextFetchCursor           string
 	lastFetchGroupCount       int
@@ -45,7 +46,7 @@ func (consumer *ShardConsumerWorker) getConsumerStatus() string {
 
 func initShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
-		shutdownFlag:              false,
+		shutdownFlag:              uberAtomic.NewBool(false),
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
 		client:                    consumerClient,
@@ -130,13 +131,13 @@ func (consumer *ShardConsumerWorker) updateStatus(success bool) {
 		if success {
 			consumer.setConsumerStatus(SHUTDOWN_COMPLETE)
 		}
-	} else if consumer.shutdownFlag {
+	} else if consumer.shutdownFlag.Load() {
 		consumer.setConsumerStatus(SHUTTING_DOWN)
 	} else if success {
 		switch status {
 		case PULLING:
 			consumer.setConsumerStatus(PROCESSING)
-		case INITIALIZING,PROCESSING:
+		case INITIALIZING, PROCESSING:
 			consumer.setConsumerStatus(PULLING)
 		}
 	}
@@ -145,14 +146,14 @@ func (consumer *ShardConsumerWorker) updateStatus(success bool) {
 }
 
 func (consumer *ShardConsumerWorker) shouldFetch() bool {
-	if consumer.lastFetchGroupCount >= consumer.client.option.MaxFetchLogGroupCount || consumer.lastFetchRawSize >= 4 * 1024 * 1024 {
+	if consumer.lastFetchGroupCount >= consumer.client.option.MaxFetchLogGroupCount || consumer.lastFetchRawSize >= 4*1024*1024 {
 		return true
 	}
 	duration := time.Since(consumer.lastFetchTime)
-	if consumer.lastFetchGroupCount < 100 && consumer.lastFetchRawSize < 1024 * 1024{
+	if consumer.lastFetchGroupCount < 100 && consumer.lastFetchRawSize < 1024*1024 {
 		// The time used here is in milliseconds.
 		return duration > 500*time.Millisecond
-	} else if consumer.lastFetchGroupCount < 500 && consumer.lastFetchRawSize < 2 * 1024 * 1024 {
+	} else if consumer.lastFetchGroupCount < 500 && consumer.lastFetchRawSize < 2*1024*1024 {
 		return duration > 200*time.Millisecond
 	} else {
 		return duration > 50*time.Millisecond
@@ -170,7 +171,7 @@ func (consumer *ShardConsumerWorker) saveCheckPointIfNeeded() {
 }
 
 func (consumer *ShardConsumerWorker) consumerShutDown() {
-	consumer.shutdownFlag = true
+	consumer.shutdownFlag.Store(true)
 	if !consumer.isShutDownComplete() {
 		consumer.consume()
 	}

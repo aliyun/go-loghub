@@ -7,13 +7,13 @@ import (
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	uberAtomic "go.uber.org/atomic"
+	"go.uber.org/atomic"
 )
 
 type ShardConsumerWorker struct {
 	client                    *ConsumerClient
 	consumerCheckPointTracker *DefaultCheckPointTracker
-	shutdownFlag              *uberAtomic.Bool
+	shutdownFlag              *atomic.Bool
 	lastFetchLogGroupList     *sls.LogGroupList
 	nextFetchCursor           string
 	lastFetchGroupCount       int
@@ -46,7 +46,7 @@ func (consumer *ShardConsumerWorker) getConsumerStatus() string {
 
 func initShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
-		shutdownFlag:              uberAtomic.NewBool(false),
+		shutdownFlag:              atomic.NewBool(false),
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
 		client:                    consumerClient,

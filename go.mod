@@ -9,7 +9,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58
 	github.com/frankban/quicktest v1.10.2 // indirect
-	github.com/go-kit/kit v0.10.0
+	github.com/go-kit/kit v0.11.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.2
 	github.com/pierrec/lz4 v2.6.0+incompatible

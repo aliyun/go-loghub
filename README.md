@@ -38,6 +38,14 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
    Client = sls.CreateNormalInterfaceV2(Endpoint, credentialsProvider)
    ```
 
+   为了防止出现配置错误，您可以在创建 Client 之后，测试一下 Client 是否能成功调用 SLS API
+   ```go
+   _, err := Client.ListProject()
+   if err != nil {
+      panic(err)
+   }
+   ```
+
 2. **创建project**
 
    参考 [log_project.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/project/log_project.go)文件

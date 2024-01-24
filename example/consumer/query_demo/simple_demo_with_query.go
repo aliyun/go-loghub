@@ -28,7 +28,7 @@ func main() {
 		CursorPosition:  consumerLibrary.SPECIAL_TIMER_CURSOR,
 		CursorStartTime: 1706077849,
 		// Query is for log pre-handling before return to client, more info refer to https://www.alibabacloud.com/help/zh/sls/user-guide/rule-based-consumption
-		Query: "* | where 1=1",
+		Query: "* | where cast(body_bytes_sent as bigint) > 14000",
 	}
 
 	consumerWorker := consumerLibrary.InitConsumerWorkerWithCheckpointTracker(option, process)

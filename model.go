@@ -71,6 +71,11 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 	return urlVal
 }
 
+type PullLogMeta struct {
+	NextCursor                          string
+	DataSize, RawDataSize, RawDataCount int
+}
+
 // GetHistogramsResponse defines response from GetHistograms call
 type SingleHistogram struct {
 	Progress string `json:"progress"`

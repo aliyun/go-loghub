@@ -445,18 +445,13 @@ func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return s.GetLogsBytesV2(plr)
+	return convertByteV1(s.GetLogsBytesV2(plr))
 }
 
 // GetLogsBytes gets logs binary data from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next curosr can be used to read logs at next time.
-func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
-	out, nextCursor, _, _, _, err = s.GetLogsBytesInner(plr)
-	return
-}
-
-func (s *LogStore) GetLogsBytesInner(plr *PullLogRequest) (out []byte, nextCursor string, dataSize, rawDataSize, rawDataCount int, err error) {
+func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 		"Accept":            "application/x-protobuf",
@@ -505,22 +500,27 @@ func (s *LogStore) GetLogsBytesInner(plr *PullLogRequest) (out []byte, nextCurso
 		err = fmt.Errorf("can't find 'x-log-cursor' header")
 		return
 	}
-	nextCursor = v[0]
+	pullLogMeta = &PullLogMeta{
+		RawDataSize:  -1,
+		RawDataCount: -1,
+	}
+
+	pullLogMeta.NextCursor = v[0]
 
 	v, ok = r.Header["X-Log-Bodyrawsize"]
 	if !ok || len(v) == 0 {
 		err = fmt.Errorf("can't find 'x-log-bodyrawsize' header")
 		return
 	}
-	dataSize, err = strconv.Atoi(v[0])
+	pullLogMeta.DataSize, err = strconv.Atoi(v[0])
 	if err != nil {
 		return
 	}
 
-	out = make([]byte, dataSize)
-	if dataSize != 0 {
+	out = make([]byte, pullLogMeta.DataSize)
+	if pullLogMeta.DataSize != 0 {
 		len := 0
-		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != dataSize {
+		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != pullLogMeta.DataSize {
 			return
 		}
 	}
@@ -531,7 +531,7 @@ func (s *LogStore) GetLogsBytesInner(plr *PullLogRequest) (out []byte, nextCurso
 	//datasize before data processing
 	v = r.Header["X-Log-Rawdatasize"]
 	if len(v) > 0 {
-		rawDataSize, err = strconv.Atoi(v[0])
+		pullLogMeta.RawDataSize, err = strconv.Atoi(v[0])
 		if err != nil {
 			return
 		}
@@ -539,7 +539,7 @@ func (s *LogStore) GetLogsBytesInner(plr *PullLogRequest) (out []byte, nextCurso
 	//lines before data processing
 	v = r.Header["X-Log-Rawdatacount"]
 	if len(v) > 0 {
-		rawDataCount, err = strconv.Atoi(v[0])
+		pullLogMeta.RawDataCount, err = strconv.Atoi(v[0])
 		if err != nil {
 			return
 		}
@@ -571,33 +571,21 @@ func (s *LogStore) PullLogs(shardID int, cursor, endCursor string,
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return s.PullLogsV2(plr)
+	return convertGlV1(s.PullLogsV2(plr))
 }
 
-func (s *LogStore) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
+func (s *LogStore) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, pullLogMeta *PullLogMeta, err error) {
 
-	out, nextCursor, err := s.GetLogsBytesV2(plr)
+	out, pullLogMeta, err := s.GetLogsBytesV2(plr)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	gl, err = LogsBytesDecode(out)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
 
-	return gl, nextCursor, nil
-}
-
-func (s *LogStore) PullLogsInner(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, dataSize, rawDataSize, rawDataCount int, err error) {
-	out, nextCursor, dataSize, rawDataSize, rawDataCount, err := s.GetLogsBytesInner(plr)
-	if err != nil {
-		return
-	}
-	gl, err = LogsBytesDecode(out)
-	if err != nil {
-		return
-	}
 	return
 }
 

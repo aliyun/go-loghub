@@ -264,14 +264,14 @@ type ClientInterface interface {
 	// The nextCursor is the next curosr can be used to read logs at next time.
 	GetLogsBytes(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (out []byte, nextCursor string, err error)
-	GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error)
+	GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error)
 	// PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 	// The logGroupMaxCount is the max number of logGroup could be returned.
 	// The nextCursor is the next cursor can be used to read logs at next time.
 	// @note if you want to pull logs continuous, set endCursor = ""
 	PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error)
-	PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error)
+	PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, pullLogMeta *PullLogMeta, err error)
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
 	// GetLogs query logs with [from, to) time range

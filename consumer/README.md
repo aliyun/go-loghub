@@ -64,6 +64,7 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |SecurityToken|aliyun SecurityToken|非必填，参考https://help.aliyun.com/document_detail/47277.html|
 |AutoCommitDisabled|是否禁用sdk自动提交checkpoint|非必填，默认不会禁用|
 |AutoCommitIntervalInMS|自动提交checkpoint的时间间隔|非必填，单位为MS，默认时间为60s|
+|Query|过滤规则  基于规则消费时必须设置对应规则 如 *| where a = 'xxx'|非必填|
 
 2.**覆写消费逻辑**
 

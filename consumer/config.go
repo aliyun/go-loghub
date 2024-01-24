@@ -14,7 +14,7 @@ type LogHubConfig struct {
 	//:param CredentialsProvider: CredentialsProvider that providers credentials(AccessKeyID, AccessKeySecret, StsToken)
 	//:param Project:
 	//:param Logstore:
-	//:param Query:
+	//:param Query: Filter rules Corresponding rules must be set when consuming based on rules, such as *| where a = 'xxx'
 	//:param ConsumerGroupName:
 	//:param ConsumerName:
 	//:param CursorPosition: This options is used for initialization, will be ignored once consumer group is created and each shard has beeen started to be consumed.

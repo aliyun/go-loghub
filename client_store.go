@@ -217,6 +217,11 @@ func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor s
 	return ls.PullLogsV2(plr)
 }
 
+func (c *Client) PullLogsInner(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, dataSize, rawDataSize, rawDataCount int, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.PullLogsInner(plr)
+}
+
 // GetHistograms query logs with [from, to) time range
 func (c *Client) GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error) {
 	ls := convertLogstore(c, project, logstore)

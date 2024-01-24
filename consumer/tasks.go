@@ -49,7 +49,7 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	// update last fetch time, for control fetch frequency
 	consumer.lastFetchTime = time.Now()
 
-	logGroup, nextCursor, rawSize, err := consumer.client.pullLogs(consumer.shardId, consumer.nextFetchCursor)
+	logGroup, nextCursor, dataSize, rawDataSize, rawDataCount, err := consumer.client.pullLogs(consumer.shardId, consumer.nextFetchCursor)
 	if err != nil {
 		return err
 	}
@@ -57,8 +57,12 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	consumer.consumerCheckPointTracker.setCurrentCursor(consumer.nextFetchCursor)
 	consumer.lastFetchLogGroupList = logGroup
 	consumer.nextFetchCursor = nextCursor
-	consumer.lastFetchRawSize = rawSize
+	consumer.lastFetchRawSize = dataSize
 	consumer.lastFetchGroupCount = GetLogGroupCount(consumer.lastFetchLogGroupList)
+	if consumer.client.option.Query != "" {
+		consumer.lastFetchRawSize = rawDataSize
+		consumer.lastFetchGroupCount = rawDataCount
+	}
 	consumer.consumerCheckPointTracker.setNextCursor(consumer.nextFetchCursor)
 	level.Debug(consumer.logger).Log(
 		"shardId", consumer.shardId,

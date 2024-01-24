@@ -452,6 +452,11 @@ func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next curosr can be used to read logs at next time.
 func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
+	out, nextCursor, _, _, _, err = s.GetLogsBytesInner(plr)
+	return
+}
+
+func (s *LogStore) GetLogsBytesInner(plr *PullLogRequest) (out []byte, nextCursor string, dataSize, rawDataSize, rawDataCount int, err error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 		"Accept":            "application/x-protobuf",
@@ -463,12 +468,12 @@ func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor s
 
 	r, err := request(s.project, "GET", uri, h, nil)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 	defer r.Body.Close()
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 
 	if r.StatusCode != http.StatusOK {
@@ -507,15 +512,35 @@ func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor s
 		err = fmt.Errorf("can't find 'x-log-bodyrawsize' header")
 		return
 	}
-	bodyRawSize, err := strconv.Atoi(v[0])
+	dataSize, err = strconv.Atoi(v[0])
 	if err != nil {
-		return nil, "", err
+		return
 	}
 
-	out = make([]byte, bodyRawSize)
-	if bodyRawSize != 0 {
+	out = make([]byte, dataSize)
+	if dataSize != 0 {
 		len := 0
-		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != bodyRawSize {
+		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != dataSize {
+			return
+		}
+	}
+	// If it is not in scan mode, exit early
+	if plr.PullMode != "scan_on_stream" {
+		return
+	}
+	//datasize before data processing
+	v = r.Header["X-Log-Rawdatasize"]
+	if len(v) > 0 {
+		rawDataSize, err = strconv.Atoi(v[0])
+		if err != nil {
+			return
+		}
+	}
+	//lines before data processing
+	v = r.Header["X-Log-Rawdatacount"]
+	if len(v) > 0 {
+		rawDataCount, err = strconv.Atoi(v[0])
+		if err != nil {
 			return
 		}
 	}
@@ -562,6 +587,18 @@ func (s *LogStore) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor
 	}
 
 	return gl, nextCursor, nil
+}
+
+func (s *LogStore) PullLogsInner(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, dataSize, rawDataSize, rawDataCount int, err error) {
+	out, nextCursor, dataSize, rawDataSize, rawDataCount, err := s.GetLogsBytesInner(plr)
+	if err != nil {
+		return
+	}
+	gl, err = LogsBytesDecode(out)
+	if err != nil {
+		return
+	}
+	return
 }
 
 // GetHistograms query logs with [from, to) time range

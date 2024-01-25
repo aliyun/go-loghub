@@ -515,31 +515,32 @@ func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta 
 		return
 	}
 
-	out = make([]byte, pullLogMeta.RawSize)
 	if pullLogMeta.RawSize != 0 {
+		out = make([]byte, pullLogMeta.RawSize)
 		len := 0
 		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != pullLogMeta.RawSize {
 			return
 		}
 	}
-	// If it is not in scan mode, exit early
-	if plr.PullMode != "scan_on_stream" {
-		return
-	}
-	//datasize before data processing
-	v = r.Header["X-Log-Rawdatasize"]
-	if len(v) > 0 {
-		pullLogMeta.RawSizeBeforeQuery, err = strconv.Atoi(v[0])
-		if err != nil {
-			return
+	// If it is scan mode, extract more headers
+	if plr.PullMode == "scan_on_stream" {
+		// RawSizeBeforeQuery before data processing
+		v = r.Header["X-Log-Rawdatasize"]
+		if len(v) > 0 {
+			pullLogMeta.RawSizeBeforeQuery, err = strconv.Atoi(v[0])
+			if err != nil {
+				err = fmt.Errorf("can't find 'x-log-rawdatasize' header")
+				return
+			}
 		}
-	}
-	//lines before data processing
-	v = r.Header["X-Log-Rawdatacount"]
-	if len(v) > 0 {
-		pullLogMeta.RawDataCountBeforeQuery, err = strconv.Atoi(v[0])
-		if err != nil {
-			return
+		//lines before data processing
+		v = r.Header["X-Log-Rawdatacount"]
+		if len(v) > 0 {
+			pullLogMeta.RawDataCountBeforeQuery, err = strconv.Atoi(v[0])
+			if err != nil {
+				err = fmt.Errorf("can't find 'x-log-rawdatacount' header")
+				return
+			}
 		}
 	}
 	return

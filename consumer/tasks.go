@@ -57,16 +57,16 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	consumer.consumerCheckPointTracker.setCurrentCursor(consumer.nextFetchCursor)
 	consumer.lastFetchLogGroupList = logGroup
 	consumer.nextFetchCursor = pullLogMeta.NextCursor
-	consumer.lastFetchRawSize = pullLogMeta.DataSize
+	consumer.lastFetchRawSize = pullLogMeta.RawSize
 	consumer.lastFetchGroupCount = GetLogGroupCount(consumer.lastFetchLogGroupList)
 	if consumer.client.option.Query != "" {
-		consumer.lastFetchRawSize = pullLogMeta.RawDataSize
-		consumer.lastFetchGroupCount = pullLogMeta.RawDataCount
-		if consumer.lastFetchRawSize == -1 {
-			consumer.lastFetchRawSize = 0
+		consumer.lastFetchRawSizeBeforeQuery = pullLogMeta.RawSizeBeforeQuery
+		consumer.lastFetchGroupCountBeforeQuery = pullLogMeta.RawDataCountBeforeQuery
+		if consumer.lastFetchRawSizeBeforeQuery == -1 {
+			consumer.lastFetchRawSizeBeforeQuery = 0
 		}
-		if consumer.lastFetchGroupCount == -1 {
-			consumer.lastFetchGroupCount = 0
+		if consumer.lastFetchGroupCountBeforeQuery == -1 {
+			consumer.lastFetchGroupCountBeforeQuery = 0
 		}
 	}
 	consumer.consumerCheckPointTracker.setNextCursor(consumer.nextFetchCursor)

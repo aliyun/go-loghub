@@ -72,8 +72,8 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 }
 
 type PullLogMeta struct {
-	NextCursor                          string
-	DataSize, RawDataSize, RawDataCount int
+	NextCursor                                           string
+	RawSize, RawSizeBeforeQuery, RawDataCountBeforeQuery int
 }
 
 // GetHistogramsResponse defines response from GetHistograms call

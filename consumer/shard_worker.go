@@ -10,17 +10,19 @@ import (
 )
 
 type ShardConsumerWorker struct {
-	client                    *ConsumerClient
-	consumerCheckPointTracker *DefaultCheckPointTracker
-	shutdownFlag              bool
-	lastFetchLogGroupList     *sls.LogGroupList
-	nextFetchCursor           string
-	lastFetchGroupCount       int
-	lastFetchTime             time.Time
-	lastFetchRawSize          int
-	consumerStatus            string
-	processor                 Processor
-	shardId                   int
+	client                         *ConsumerClient
+	consumerCheckPointTracker      *DefaultCheckPointTracker
+	shutdownFlag                   bool
+	lastFetchLogGroupList          *sls.LogGroupList
+	nextFetchCursor                string
+	lastFetchGroupCount            int
+	lastFetchGroupCountBeforeQuery int
+	lastFetchTime                  time.Time
+	lastFetchRawSize               int
+	lastFetchRawSizeBeforeQuery    int
+	consumerStatus                 string
+	processor                      Processor
+	shardId                        int
 	// TODO: refine to channel
 	isCurrentDone bool
 	logger        log.Logger
@@ -145,14 +147,21 @@ func (consumer *ShardConsumerWorker) updateStatus(success bool) {
 }
 
 func (consumer *ShardConsumerWorker) shouldFetch() bool {
-	if consumer.lastFetchGroupCount >= consumer.client.option.MaxFetchLogGroupCount || consumer.lastFetchRawSize >= 4*1024*1024 {
+	lastFetchRawSize := consumer.lastFetchRawSize
+	lastFetchGroupCount := consumer.lastFetchGroupCount
+
+	if consumer.client.option.Query != "" {
+		lastFetchRawSize = consumer.lastFetchRawSizeBeforeQuery
+		lastFetchGroupCount = consumer.lastFetchGroupCountBeforeQuery
+	}
+	if lastFetchGroupCount >= consumer.client.option.MaxFetchLogGroupCount || lastFetchRawSize >= 4*1024*1024 {
 		return true
 	}
 	duration := time.Since(consumer.lastFetchTime)
-	if consumer.lastFetchGroupCount < 100 && consumer.lastFetchRawSize < 1024*1024 {
+	if lastFetchGroupCount < 100 && lastFetchRawSize < 1024*1024 {
 		// The time used here is in milliseconds.
 		return duration > 500*time.Millisecond
-	} else if consumer.lastFetchGroupCount < 500 && consumer.lastFetchRawSize < 2*1024*1024 {
+	} else if lastFetchGroupCount < 500 && lastFetchRawSize < 2*1024*1024 {
 		return duration > 200*time.Millisecond
 	} else {
 		return duration > 50*time.Millisecond

@@ -24,14 +24,6 @@ func convertLogstore(c *Client, project, logstore string) *LogStore {
 	}
 }
 
-func convertByteV1(out []byte, meta *PullLogMeta, err error) ([]byte, string, error) {
-	return out, meta.NextCursor, err
-}
-
-func convertGlV1(gl *LogGroupList, meta *PullLogMeta, err error) (*LogGroupList, string, error) {
-	return gl, meta.NextCursor, err
-}
-
 // ListShards returns shard id list of this logstore.
 func (c *Client) ListShards(project, logstore string) (shardIDs []*Shard, err error) {
 	ls := convertLogstore(c, project, logstore)
@@ -202,10 +194,10 @@ func (c *Client) GetLogsBytes(project, logstore string, shardID int, cursor, end
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return convertByteV1(c.GetLogsBytesV2(plr))
+	return c.GetLogsBytesV2(plr)
 }
 
-func (c *Client) GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
+func (c *Client) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
 	ls := convertLogstore(c, plr.Project, plr.Logstore)
 	return ls.GetLogsBytesV2(plr)
 }
@@ -220,9 +212,14 @@ func (c *Client) PullLogs(project, logstore string, shardID int, cursor, endCurs
 	return ls.PullLogs(shardID, cursor, endCursor, logGroupMaxCount)
 }
 
-func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, pullLogMeta *PullLogMeta, err error) {
+func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	ls := convertLogstore(c, plr.Project, plr.Logstore)
 	return ls.PullLogsV2(plr)
+}
+
+func (c *Client) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.PullLogsWithQuery(plr)
 }
 
 // GetHistograms query logs with [from, to) time range

@@ -144,7 +144,7 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 		plr.PullMode = "scan_on_stream"
 	}
 	for retry := 0; retry < 3; retry++ {
-		gl, pullLogMeta, err = consumer.client.PullLogsV2(plr)
+		gl, pullLogMeta, err = consumer.client.PullLogsWithQuery(plr)
 		if err != nil {
 			slsError, ok := err.(sls.Error)
 			if ok {

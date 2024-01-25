@@ -813,12 +813,12 @@ func (c *TokenAutoUpdateClient) GetLogsBytes(project, logstore string, shardID i
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return convertByteV1(c.GetLogsBytesV2(plr))
+	return c.GetLogsBytesV2(plr)
 }
 
-func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
+func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		out, pullLogMeta, err = c.logClient.GetLogsBytesV2(plr)
+		out, nextCursor, err = c.logClient.GetLogsBytesV2(plr)
 		if !c.processError(err) {
 			return
 		}
@@ -836,12 +836,22 @@ func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, 
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return convertGlV1(c.logClient.PullLogsV2(plr))
+	return c.logClient.PullLogsV2(plr)
 }
 
-func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, pullLogMeta *PullLogMeta, err error) {
+func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		gl, pullLogMeta, err = c.logClient.PullLogsV2(plr)
+		gl, nextCursor, err = c.logClient.PullLogsV2(plr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		gl, plm, err = c.logClient.PullLogsWithQuery(plr)
 		if !c.processError(err) {
 			return
 		}

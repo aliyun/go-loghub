@@ -445,13 +445,18 @@ func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return convertByteV1(s.GetLogsBytesV2(plr))
+	return s.GetLogsBytesV2(plr)
+}
+
+func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) ([]byte, string, error) {
+	out, plm, err := s.GetLogsBytesWithQuery(plr)
+	return out, plm.NextCursor, err
 }
 
 // GetLogsBytes gets logs binary data from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next curosr can be used to read logs at next time.
-func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
+func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 		"Accept":            "application/x-protobuf",
@@ -570,12 +575,16 @@ func (s *LogStore) PullLogs(shardID int, cursor, endCursor string,
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return convertGlV1(s.PullLogsV2(plr))
+	return s.PullLogsV2(plr)
 }
 
-func (s *LogStore) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, pullLogMeta *PullLogMeta, err error) {
+func (s *LogStore) PullLogsV2(plr *PullLogRequest) (*LogGroupList, string, error) {
+	gl, plm, err := s.PullLogsWithQuery(plr)
+	return gl, plm.NextCursor, err
+}
 
-	out, pullLogMeta, err := s.GetLogsBytesV2(plr)
+func (s *LogStore) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
+	out, plm, err := s.GetLogsBytesWithQuery(plr)
 	if err != nil {
 		return nil, nil, err
 	}

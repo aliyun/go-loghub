@@ -64,14 +64,8 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 	}
 	if plr.Query != "" {
 		urlVal.Add("query", plr.Query)
-		if plr.PullMode == "" {
-			urlVal.Add("pullMode", "scan_on_stream")
-		}
+		urlVal.Add("pullMode", "scan_on_stream")
 	}
-	if plr.PullMode != "" {
-		urlVal.Add("pullMode", plr.PullMode)
-	}
-
 	return urlVal
 }
 

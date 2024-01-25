@@ -140,9 +140,6 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 		Cursor:           cursor,
 		LogGroupMaxCount: consumer.option.MaxFetchLogGroupCount,
 	}
-	if plr.Query != "" {
-		plr.PullMode = "scan_on_stream"
-	}
 	for retry := 0; retry < 3; retry++ {
 		gl, plm, err = consumer.client.PullLogsWithQuery(plr)
 		if err != nil {

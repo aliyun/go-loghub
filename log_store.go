@@ -527,8 +527,8 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 			return
 		}
 	}
-	// If it is scan mode, extract more headers
-	if plr.PullMode == "scan_on_stream" {
+	// If query is not nil, extract more headers
+	if plr.Query != "" {
 		// RawSizeBeforeQuery before data processing
 		v = r.Header["X-Log-Rawdatasize"]
 		if len(v) > 0 {

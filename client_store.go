@@ -202,6 +202,11 @@ func (c *Client) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor str
 	return ls.GetLogsBytesV2(plr)
 }
 
+func (c *Client) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, plm *PullLogMeta, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.GetLogsBytesWithQuery(plr)
+}
+
 // PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next cursor can be used to read logs at next time.

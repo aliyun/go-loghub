@@ -826,6 +826,16 @@ func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte,
 	return
 }
 
+func (c *TokenAutoUpdateClient) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, plm *PullLogMeta, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		out, plm, err = c.logClient.GetLogsBytesWithQuery(plr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 	logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error) {
 	plr := &PullLogRequest{
@@ -836,7 +846,7 @@ func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, 
 		EndCursor:        endCursor,
 		LogGroupMaxCount: logGroupMaxCount,
 	}
-	return c.logClient.PullLogsV2(plr)
+	return c.PullLogsV2(plr)
 }
 
 func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {

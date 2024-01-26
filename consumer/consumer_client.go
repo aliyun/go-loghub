@@ -143,7 +143,7 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 	for retry := 0; retry < 3; retry++ {
 		gl, plm, err = consumer.client.PullLogsWithQuery(plr)
 		if err != nil {
-			slsError, ok := err.(sls.Error)
+			slsError, ok := err.(*sls.Error)
 			if ok {
 				level.Warn(consumer.logger).Log("msg", "shard pull logs failed, occur sls error",
 					"shard", shardId,

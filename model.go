@@ -50,7 +50,7 @@ type PullLogRequest struct {
 	EndCursor        string
 	LogGroupMaxCount int
 	Query            string
-	// Deprecated PullMode is not used
+	// Deprecated: PullMode is not used
 	PullMode string
 }
 

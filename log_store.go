@@ -448,6 +448,7 @@ func (s *LogStore) GetLogsBytes(shardID int, cursor, endCursor string,
 	return s.GetLogsBytesV2(plr)
 }
 
+// Deprecated: use GetLogsBytesWithQuery instead
 func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) ([]byte, string, error) {
 	out, plm, err := s.GetLogsBytesWithQuery(plr)
 	return out, plm.NextCursor, err
@@ -578,6 +579,7 @@ func (s *LogStore) PullLogs(shardID int, cursor, endCursor string,
 	return s.PullLogsV2(plr)
 }
 
+// Deprecated: use PullLogsWithQuery instead
 func (s *LogStore) PullLogsV2(plr *PullLogRequest) (*LogGroupList, string, error) {
 	gl, plm, err := s.PullLogsWithQuery(plr)
 	return gl, plm.NextCursor, err

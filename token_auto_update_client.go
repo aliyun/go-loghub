@@ -816,6 +816,7 @@ func (c *TokenAutoUpdateClient) GetLogsBytes(project, logstore string, shardID i
 	return c.GetLogsBytesV2(plr)
 }
 
+// Deprecated: use GetLogsBytesWithQuery instead
 func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		out, nextCursor, err = c.logClient.GetLogsBytesV2(plr)
@@ -849,6 +850,7 @@ func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, 
 	return c.PullLogsV2(plr)
 }
 
+// Deprecated: use PullLogsWithQuery instead
 func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		gl, nextCursor, err = c.logClient.PullLogsV2(plr)

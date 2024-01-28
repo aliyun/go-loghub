@@ -500,28 +500,18 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 		err = fmt.Errorf("unexpected compress type:%v", v[0])
 		return
 	}
-	pullLogMeta = &PullLogMeta{
-		RawSizeBeforeQuery:      -1,
-		RawDataCountBeforeQuery: -1,
-	}
+	pullLogMeta = &PullLogMeta{}
 	v, ok = r.Header["X-Log-Cursor"]
 	if !ok || len(v) == 0 {
 		err = fmt.Errorf("can't find 'x-log-cursor' header")
 		return
 	}
 	pullLogMeta.NextCursor = v[0]
-
-	v, ok = r.Header["X-Log-Bodyrawsize"]
-	if !ok || len(v) == 0 {
-		err = fmt.Errorf("can't find 'x-log-bodyrawsize' header")
-		return
-	}
-	pullLogMeta.RawSize, err = strconv.Atoi(v[0])
+	pullLogMeta.RawSize, err = ParseHeaderInt(r, "X-Log-Bodyrawsize")
 	if err != nil {
 		return
 	}
-
-	if pullLogMeta.RawSize != 0 {
+	if pullLogMeta.RawSize > 0 {
 		out = make([]byte, pullLogMeta.RawSize)
 		len := 0
 		if len, err = lz4.UncompressBlock(buf, out); err != nil || len != pullLogMeta.RawSize {
@@ -531,22 +521,14 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 	// If query is not nil, extract more headers
 	if plr.Query != "" {
 		// RawSizeBeforeQuery before data processing
-		v = r.Header["X-Log-Rawdatasize"]
-		if len(v) > 0 {
-			pullLogMeta.RawSizeBeforeQuery, err = strconv.Atoi(v[0])
-			if err != nil {
-				err = fmt.Errorf("can't find 'x-log-rawdatasize' header")
-				return
-			}
+		pullLogMeta.RawSizeBeforeQuery, err = ParseHeaderInt(r, "X-Log-Rawdatasize")
+		if err != nil {
+			return
 		}
 		//lines before data processing
-		v = r.Header["X-Log-Rawdatacount"]
-		if len(v) > 0 {
-			pullLogMeta.RawDataCountBeforeQuery, err = strconv.Atoi(v[0])
-			if err != nil {
-				err = fmt.Errorf("can't find 'x-log-rawdatacount' header")
-				return
-			}
+		pullLogMeta.RawDataCountBeforeQuery, err = ParseHeaderInt(r, "X-Log-Rawdatacount")
+		if err != nil {
+			return
 		}
 	}
 	return

@@ -1,6 +1,11 @@
 package sls
 
-import "strconv"
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+)
 
 func BoolToInt64(b bool) int64 {
 	if b {
@@ -24,4 +29,16 @@ func Int64PtrToString(i *int64) string {
 		return ""
 	}
 	return strconv.FormatInt(*i, 10)
+}
+
+func ParseHeaderInt(r *http.Response, headerName string) (int, error) {
+	values := r.Header[headerName]
+	if len(values) > 0 {
+		value, err := strconv.Atoi(values[0])
+		if err != nil {
+			return -1, fmt.Errorf("can't parse '%s' header: %v", strings.ToLower(headerName), err)
+		}
+		return value, nil
+	}
+	return -1, fmt.Errorf("can't find '%s' header", strings.ToLower(headerName))
 }

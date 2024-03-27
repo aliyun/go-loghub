@@ -139,7 +139,7 @@ func(callback *Callback)Fail(result *producer.Result){
 | StsTokenShutDown    | channel   | 关闭ststoken 自动刷新的通讯信道，当该信道关闭时，不再自动刷新ststoken值。当producer关闭的时候，该参数不为nil值，则会主动调用close去关闭该信道停止ststoken的自动刷新。                                                                                                               |
 | Region              | String    | 日志服务的区域，当签名版本使用 AuthV4 时必选。 例如cn-hangzhou。                                                                                                                                                                            |
 | AuthVersion         | String    | 使用的签名版本，可选枚举值为 AuthV1， AuthV4。AuthV4 签名示例可参考程序 [producer_test.go](producer_test.go)。                                                                                                                                  |
-| UseMetricStoreURL         | bool      | 使用 Metricstore地址进行发送日志,可以提升大时间线基数下的查询性能                                                                                                                                                                               |
+| UseMetricStoreURL         | bool      | 使用 Metricstore地址进行发送日志,可以提升大基数时间线下的查询性能。                                                                                                                                                                              |
 
 ## 关于性能
 

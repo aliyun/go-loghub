@@ -46,7 +46,7 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 	beginMs := GetTimeMs(time.Now().UnixNano())
 	var err error
 	if producerBatch.isUseMetricStoreUrl() {
-		err = ioWorker.client.PutLogsWithMetricStroreURL(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
+		err = ioWorker.client.PutLogsWithMetricStoreURL(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	} else if producerBatch.shardHash != nil {
 		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
 	} else {

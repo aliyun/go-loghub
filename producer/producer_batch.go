@@ -36,7 +36,7 @@ func generatePackId(source string) string {
 	return ToMd5(srcData)[0:16]
 }
 
-func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig, isMetricStore bool) *ProducerBatch {
+func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
 	logs := []*sls.Log{}
 
 	if log, ok := logData.(*sls.Log); ok {
@@ -77,7 +77,7 @@ func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logs
 		logstore:             logstore,
 		result:               initResult(),
 		maxReservedAttempts:  config.MaxReservedAttempts,
-		isMetricstore:        isMetricStore,
+		isMetricstore:        config.MetricStore,
 	}
 	if shardHash == "" {
 		producerBatch.shardHash = nil

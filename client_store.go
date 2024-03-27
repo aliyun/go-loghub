@@ -105,7 +105,8 @@ func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKe
 
 func (c *Client) PostMetricStoreLogs(project, logstore string, lg *LogGroup) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PostMetricStoreLogs(lg)
+	ls.MetricStore = true
+	return ls.PutLogs(lg)
 }
 
 // PostRawLogWithCompressType put raw log data to log service, no marshal

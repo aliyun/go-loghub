@@ -741,9 +741,9 @@ func (c *TokenAutoUpdateClient) PutLogs(project, logstore string, lg *LogGroup) 
 	return
 }
 
-func (c *TokenAutoUpdateClient) PostMetricStoreLogs(project, logstore string, lg *LogGroup) (err error) {
+func (c *TokenAutoUpdateClient) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		err = c.logClient.PostMetricStoreLogs(project, logstore, lg)
+		err = c.logClient.PutLogsWithMetricStoreURL(project, logstore, lg)
 		if !c.processError(err) {
 			return
 		}

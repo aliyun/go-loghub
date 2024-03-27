@@ -148,7 +148,7 @@ type ClientInterface interface {
 	// Warning: this method may affect your billings, for more details ref: https://www.aliyun.com/price/detail/sls
 	UpdateLogStoreMeteringMode(project string, logstore string, meteringMode string) error
 
-	// #################### MetricStore Operations #####################
+	// #################### UseMetricStoreURL Operations #####################
 	// CreateMetricStore creates a new metric store in SLS.
 	CreateMetricStore(project string, metricStore *LogStore) error
 	// UpdateMetricStore updates a metric store.
@@ -245,7 +245,7 @@ type ClientInterface interface {
 	MergeShards(project, logstore string, shardID int) (shards []*Shard, err error)
 
 	// #################### Log Operations #####################
-	PostMetricStoreLogs(project, logstore string, lg *LogGroup) (err error)
+	PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error)
 	// PutLogs put logs into logstore.
 	// The callers should transform user logs into LogGroup.
 	PutLogs(project, logstore string, lg *LogGroup) (err error)

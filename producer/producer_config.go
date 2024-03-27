@@ -38,7 +38,7 @@ type ProducerConfig struct {
 	LogTags               []*sls.LogTag
 	GeneratePackId        bool
 	CredentialsProvider   sls.CredentialsProvider
-	MetricStore           bool
+	UseMetricStoreURL     bool
 
 	packLock   sync.Mutex
 	packPrefix string

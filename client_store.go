@@ -103,9 +103,9 @@ func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKe
 	return ls.PostLogStoreLogs(lg, hashKey)
 }
 
-func (c *Client) PostMetricStoreLogs(project, logstore string, lg *LogGroup) (err error) {
+func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	ls.MetricStore = true
+	ls.useMetricStoreURL = true
 	return ls.PutLogs(lg)
 }
 

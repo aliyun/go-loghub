@@ -105,7 +105,7 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 5. **写数据**
 
-   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失。
+   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失, 对于MetricStore类型, 可以使用`PutLogsWithMetricStoreURL`API 发送数据 。
 
    ```go
    logs := []*sls.Log{}

@@ -306,7 +306,7 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 	}
 	var uri string
 	if s.MetricStore {
-		uri = s.getMetricStoreURL()
+		uri = fmt.Sprintf("/prometheus/%s/%s/api/v1/write", s.project.Name, s.Name)
 	} else {
 		uri = fmt.Sprintf("/logstores/%v", s.Name)
 	}
@@ -324,10 +324,6 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 		return err
 	}
 	return nil
-}
-
-func (s *LogStore) getMetricStoreURL() string {
-	return fmt.Sprintf("/prometheus/%s/%s/api/v1/write", s.project.Name, s.Name)
 }
 
 // PostLogStoreLogs put logs into Shard logstore by hashKey.

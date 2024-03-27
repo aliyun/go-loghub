@@ -170,23 +170,6 @@ func (producer *Producer) SendLogList(project, logstore, topic, source string, l
 
 }
 
-func (producer *Producer) SendMetricStoreLogWithCallBack(project, logstore, topic, source string, log *sls.Log, callback CallBack) error {
-	err := producer.waitTime()
-	if err != nil {
-		return err
-	}
-	return producer.logAccumulator.addLogToProducerBatch(project, logstore, "", topic, source, log, callback)
-}
-
-func (producer *Producer) SendMetricStoreLogListWithCallBack(project, logstore, topic, source string, logList []*sls.Log, callback CallBack) (err error) {
-	err = producer.waitTime()
-	if err != nil {
-		return err
-	}
-	return producer.logAccumulator.addLogToProducerBatch(project, logstore, "", topic, source, logList, callback)
-
-}
-
 func (producer *Producer) HashSendLog(project, logstore, shardHash, topic, source string, log *sls.Log) error {
 	err := producer.waitTime()
 	if err != nil {

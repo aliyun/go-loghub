@@ -367,7 +367,7 @@ func (s *LogStore) PostMetricStoreLogs(lg *LogGroup) (err error) {
 		}
 		outLen = len(out)
 	}
-	uri := fmt.Sprintf("/prometheus/%s/%s/api/vi/write", s.project.Name, s.Name)
+	uri := fmt.Sprintf("/prometheus/%s/%s/api/v1/write", s.project.Name, s.Name)
 	r, err := request(s.project, "POST", uri, h, out[:outLen])
 	if err != nil {
 		return NewClientError(err)

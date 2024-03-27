@@ -148,7 +148,7 @@ type ClientInterface interface {
 	// Warning: this method may affect your billings, for more details ref: https://www.aliyun.com/price/detail/sls
 	UpdateLogStoreMeteringMode(project string, logstore string, meteringMode string) error
 
-	// #################### UseMetricStoreURL Operations #####################
+	// #################### MetricStore Operations #####################
 	// CreateMetricStore creates a new metric store in SLS.
 	CreateMetricStore(project string, metricStore *LogStore) error
 	// UpdateMetricStore updates a metric store.

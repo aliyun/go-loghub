@@ -45,10 +45,10 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 	level.Debug(ioWorker.logger).Log("msg", "ioworker send data to server")
 	beginMs := GetTimeMs(time.Now().UnixNano())
 	var err error
-	if producerBatch.shardHash != nil {
-		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
-	} else if producerBatch.isMetricStore() {
+	if producerBatch.isMetricStore() {
 		err = ioWorker.client.PostMetricStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
+	} else if producerBatch.shardHash != nil {
+		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
 	} else {
 		err = ioWorker.client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	}

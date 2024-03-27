@@ -245,6 +245,7 @@ type ClientInterface interface {
 	MergeShards(project, logstore string, shardID int) (shards []*Shard, err error)
 
 	// #################### Log Operations #####################
+	PostMetricStoreLogs(project, logstore string, lg *LogGroup) (err error)
 	// PutLogs put logs into logstore.
 	// The callers should transform user logs into LogGroup.
 	PutLogs(project, logstore string, lg *LogGroup) (err error)

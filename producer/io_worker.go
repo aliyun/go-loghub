@@ -47,6 +47,8 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 	var err error
 	if producerBatch.shardHash != nil {
 		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
+	} else if producerBatch.isMetricStore() {
+		err = ioWorker.client.PostMetricStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	} else {
 		err = ioWorker.client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	}

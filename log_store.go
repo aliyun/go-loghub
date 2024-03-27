@@ -321,6 +321,69 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 	return nil
 }
 
+// PostMetricStoreLogs put logs into metricstore
+// The callers should transform user logs into LogGroup.
+func (s *LogStore) PostMetricStoreLogs(lg *LogGroup) (err error) {
+	if len(lg.Logs) == 0 {
+		// empty log group
+		return nil
+	}
+
+	body, err := proto.Marshal(lg)
+	if err != nil {
+		return NewClientError(err)
+	}
+
+	var out []byte
+	var h map[string]string
+	var outLen int
+	switch s.putLogCompressType {
+	case Compress_LZ4:
+		// Compresse body with lz4
+		out = make([]byte, lz4.CompressBlockBound(len(body)))
+		var hashTable [1 << 16]int
+		n, err := lz4.CompressBlock(body, out, hashTable[:])
+		if err != nil {
+			return NewClientError(err)
+		}
+		// copy incompressible data as lz4 format
+		if n == 0 {
+			n, _ = copyIncompressible(body, out)
+		}
+
+		h = map[string]string{
+			"x-log-compresstype": "lz4",
+			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
+			"Content-Type":       "application/x-protobuf",
+		}
+		outLen = n
+		break
+	case Compress_None:
+		// no compress
+		out = body
+		h = map[string]string{
+			"x-log-bodyrawsize": strconv.Itoa(len(body)),
+			"Content-Type":      "application/x-protobuf",
+		}
+		outLen = len(out)
+	}
+	uri := fmt.Sprintf("/prometheus/%s/%s/api/vi/write", s.project.Name, s.Name)
+	r, err := request(s.project, "POST", uri, h, out[:outLen])
+	if err != nil {
+		return NewClientError(err)
+	}
+	defer r.Body.Close()
+	body, _ = ioutil.ReadAll(r.Body)
+	if r.StatusCode != http.StatusOK {
+		err := new(Error)
+		if jErr := json.Unmarshal(body, err); jErr != nil {
+			return NewBadResponseError(string(body), r.Header, r.StatusCode)
+		}
+		return err
+	}
+	return nil
+}
+
 // PostLogStoreLogs put logs into Shard logstore by hashKey.
 // The callers should transform user logs into LogGroup.
 func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string) (err error) {

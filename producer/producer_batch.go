@@ -28,6 +28,7 @@ type ProducerBatch struct {
 	shardHash            *string
 	result               *Result
 	maxReservedAttempts  int
+	isMetricstore        bool
 }
 
 func generatePackId(source string) string {
@@ -35,7 +36,7 @@ func generatePackId(source string) string {
 	return ToMd5(srcData)[0:16]
 }
 
-func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
+func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig, isMetricStore bool) *ProducerBatch {
 	logs := []*sls.Log{}
 
 	if log, ok := logData.(*sls.Log); ok {
@@ -76,6 +77,7 @@ func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logs
 		logstore:             logstore,
 		result:               initResult(),
 		maxReservedAttempts:  config.MaxReservedAttempts,
+		isMetricstore:        isMetricStore,
 	}
 	if shardHash == "" {
 		producerBatch.shardHash = nil
@@ -112,6 +114,12 @@ func (producerBatch *ProducerBatch) getLogGroupCount() int {
 	defer producerBatch.lock.RUnlock()
 	producerBatch.lock.RLock()
 	return len(producerBatch.logGroup.GetLogs())
+}
+
+func (producerBatch *ProducerBatch) isMetricStore() bool {
+	defer producerBatch.lock.RUnlock()
+	producerBatch.lock.RLock()
+	return producerBatch.isMetricstore
 }
 
 func (producerBatch *ProducerBatch) addLogToLogGroup(log interface{}) {

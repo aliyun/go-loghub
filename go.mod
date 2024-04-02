@@ -11,12 +11,12 @@ require (
 	github.com/frankban/quicktest v1.10.2 // indirect
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.5.0
 	github.com/pierrec/lz4 v2.6.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/atomic v1.5.0
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

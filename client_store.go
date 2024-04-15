@@ -228,6 +228,11 @@ func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor s
 	return ls.PullLogsV2(plr)
 }
 
+func (c *Client) PullLogsV3(plr *PullLogRequest) (r *PullLogsResponse, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.PullLogsV3(plr)
+}
+
 func (c *Client) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
 	ls := convertLogstore(c, plr.Project, plr.Logstore)
 	return ls.PullLogsWithQuery(plr)

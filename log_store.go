@@ -661,12 +661,12 @@ func decodeTag(rawBytes []byte, offset, length int) (f *FastLogTag, err error) {
 		} else if mode == 5 {
 			pos = values[2] + 4
 		} else {
-			return nil, errors.New("unexpected mode: " + strconv.FormatInt(int64(mode), 10))
+			return nil, fmt.Errorf("unexpected mode: %d", mode)
 		}
 	}
 	// TODO check key and value
 	if pos != endOffset {
-		return nil, errors.New("unable to parse pos " + strconv.FormatInt(int64(pos), 10))
+		return nil, fmt.Errorf("unable to parse pos %d", pos)
 	}
 	return f, nil
 }
@@ -706,12 +706,12 @@ func decodeLogContent(rawBytes []byte, offset, length int) (f *FastLogContent, e
 		} else if mode == 5 {
 			pos += 4
 		} else {
-			return nil, errors.New("unexpected mode: " + strconv.FormatInt(int64(mode), 10))
+			return nil, fmt.Errorf("unexpected mode: %d", mode)
 		}
 	}
 	// TODO check key and value
 	if pos != endOffset {
-		return nil, errors.New("unable to parse pos " + strconv.FormatInt(int64(pos), 10))
+		return nil, fmt.Errorf("unable to parse pos %d", pos)
 	}
 	return f, nil
 }
@@ -762,14 +762,14 @@ func decodeLog(rawBytes []byte, offset, length int) (f *FastLog, err error) {
 			}
 			pos = values[2] + 4
 		} else {
-			return nil, errors.New("unexpected mode: " + strconv.FormatInt(int64(mode), 10))
+			return nil, fmt.Errorf("unexpected mode: %d", mode)
 		}
 	}
 	if !findTime {
-		return nil, errors.New("time is not found in log from pos " + strconv.FormatInt(int64(pos), 10))
+		return nil, fmt.Errorf("time is not found in log from pos %d", pos)
 	}
 	if pos != endOffset {
-		return nil, errors.New("unable to parse pos " + strconv.FormatInt(int64(pos), 10))
+		return nil, fmt.Errorf("unable to parse pos %d", pos)
 	}
 	return f, nil
 }
@@ -829,7 +829,7 @@ func decodeLogGroup(rawBytes []byte, offset, length int) (f *FastLogGroup, err e
 		}
 	}
 	if pos != endOffset {
-		return nil, errors.New("unable to parse pos " + strconv.FormatInt(int64(pos), 10))
+		return nil, fmt.Errorf("unable to parse pos %d", pos)
 	}
 	return f, nil
 }
@@ -872,11 +872,11 @@ func decodeLogGroups(data []byte, rawSize int) (logGroups []*FastLogGroup, err e
 		} else if mode == 5 {
 			pos += 4
 		} else {
-			return nil, errors.New("unexpected mode: " + strconv.FormatInt(int64(mode), 10))
+			return nil, fmt.Errorf("unexpected mode: %d", mode)
 		}
 	}
 	if pos != rawSize {
-		return nil, errors.New("unable to parse pos " + strconv.FormatInt(int64(pos), 10) + " rawSize " + strconv.FormatInt(int64(rawSize), 10))
+		return nil, fmt.Errorf("unable to parse pos %d rawSize %d", pos, rawSize)
 	}
 	return logGroups, nil
 }

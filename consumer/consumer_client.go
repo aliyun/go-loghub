@@ -140,7 +140,6 @@ func (consumer *ConsumerClient) getCursor(shardId int, from string) (string, err
 }
 
 func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (r *sls.PullLogsResponse, err error) {
-	fmt.Println("PullLogs")
 	plr := &sls.PullLogRequest{
 		Project:          consumer.option.Project,
 		Logstore:         consumer.option.Logstore,

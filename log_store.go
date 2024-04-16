@@ -2,7 +2,6 @@ package sls
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -593,10 +592,12 @@ func (s *LogStore) PullLogsV3(plr *PullLogRequest) (r *PullLogsResponse, err err
 		return nil, err
 	}
 	r = &PullLogsResponse{
-		NextCursor:              plm.NextCursor,
-		RawSize:                 plm.RawSize,
-		RawSizeBeforeQuery:      plm.RawSizeBeforeQuery,
-		RawDataCountBeforeQuery: plm.RawDataCountBeforeQuery,
+		PullLogMeta: PullLogMeta{
+			NextCursor:              plm.NextCursor,
+			RawSize:                 plm.RawSize,
+			RawSizeBeforeQuery:      plm.RawSizeBeforeQuery,
+			RawDataCountBeforeQuery: plm.RawDataCountBeforeQuery,
+		},
 	}
 	r.LogGroups, err = decodeLogGroups(out, r.RawSize)
 	if err != nil {
@@ -605,68 +606,58 @@ func (s *LogStore) PullLogsV3(plr *PullLogRequest) (r *PullLogsResponse, err err
 	return r, nil
 }
 
-func decodeVarInt32(data []byte, pos, rawSize int) ([]int, error) {
-	values := []int{0, 0, 0}
-	shift := 0
+func decodeVarInt32(data []byte, pos, rawSize int) (int, int, error) {
+	shift, x := 0, 0
 	var b int
 	for i := pos; i < rawSize; i++ {
 		b = int(data[i]) & 0xff
-		values[1] |= (b & 127) << shift
+		x |= (b & 127) << shift
 		shift += 7
 		if (b & 128) == 0 {
-			values[2] = i + 1
-			values[0] = 1
-			break
+			return x, i + 1, nil
 		}
 	}
-	if values[0] == 0 {
-		return nil, errors.New("error decoding varint32 from pos " + strconv.FormatInt(int64(pos), 10))
-	}
-	return values, nil
+	return 0, 0, fmt.Errorf("error decoding varint32 from pos %d", pos)
 }
 
 func decodeTag(rawBytes []byte, offset, length int) (f *FastLogTag, err error) {
 	f = &FastLogTag{}
 	pos, endOffset := offset, offset+length
-	var values []int
-	var mode, index int
+	var mode, index, val int
 	for pos < endOffset {
-		values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 		if err != nil {
 			return nil, err
 		}
-		pos = values[2]
-		mode = values[1] & 0x7
-		index = values[1] >> 3
-		if mode == 0 {
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		mode, index = val&0x7, val>>3
+		switch mode {
+		case 0:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2]
-		} else if mode == 1 {
-			pos = values[2] + 8
-		} else if mode == 2 {
-			pos = values[2]
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		case 1:
+			pos += 8
+		case 2:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2] + values[1]
 			if index == 1 {
-				f.Key = string(rawBytes[values[2] : values[2]+values[1]])
+				f.Key = string(rawBytes[pos : pos+val])
 			} else if index == 2 {
-				f.Value = string(rawBytes[values[2] : values[2]+values[1]])
+				f.Value = string(rawBytes[pos : pos+val])
 			}
-		} else if mode == 5 {
-			pos = values[2] + 4
-		} else {
-			return nil, fmt.Errorf("unexpected mode: %d", mode)
+			pos += val
+		case 5:
+			pos += 4
+		default:
+			return nil, fmt.Errorf("error parsing tag, unexpected mode: %d", mode)
 		}
 	}
 	// TODO check key and value
 	if pos != endOffset {
-		return nil, fmt.Errorf("unable to parse pos %d", pos)
+		return nil, fmt.Errorf("error parsing tag, pos %d, end %d", pos, endOffset)
 	}
 	return f, nil
 }
@@ -674,44 +665,41 @@ func decodeTag(rawBytes []byte, offset, length int) (f *FastLogTag, err error) {
 func decodeLogContent(rawBytes []byte, offset, length int) (f *FastLogContent, err error) {
 	f = &FastLogContent{}
 	pos, endOffset := offset, offset+length
-	var values []int
-	var mode, index int
+	var mode, index, val int
 	for pos < endOffset {
-		values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 		if err != nil {
 			return nil, err
 		}
-		mode = values[1] & 0x7
-		index = values[1] >> 3
-		pos = values[2]
-		if mode == 0 {
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		mode, index = val&0x7, val>>3
+		switch mode {
+		case 0:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2]
-		} else if mode == 1 {
+		case 1:
 			pos += 8
-		} else if mode == 2 {
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		case 2:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2] + values[1]
 			if index == 1 {
-				f.Key = string(rawBytes[values[2] : values[2]+values[1]])
+				f.Key = string(rawBytes[pos : pos+val])
 			} else if index == 2 {
-				f.Value = string(rawBytes[values[2] : values[2]+values[1]])
+				f.Value = string(rawBytes[pos : pos+val])
 			}
-		} else if mode == 5 {
+			pos += val
+		case 5:
 			pos += 4
-		} else {
-			return nil, fmt.Errorf("unexpected mode: %d", mode)
+		default:
+			return nil, fmt.Errorf("error parsing content, unexpected mode: %d", mode)
 		}
 	}
 	// TODO check key and value
 	if pos != endOffset {
-		return nil, fmt.Errorf("unable to parse pos %d", pos)
+		return nil, fmt.Errorf("error parsing content, pos %d, end %d", pos, endOffset)
 	}
 	return f, nil
 }
@@ -719,57 +707,53 @@ func decodeLogContent(rawBytes []byte, offset, length int) (f *FastLogContent, e
 func decodeLog(rawBytes []byte, offset, length int) (f *FastLog, err error) {
 	f = &FastLog{}
 	pos, endOffset := offset, offset+length
-	var values []int
-	var mode, index int
+	var mode, index, val int
 	findTime := false
 	for pos < endOffset {
-		values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 		if err != nil {
 			return nil, err
 		}
-		mode = values[1] & 0x7
-		index = values[1] >> 3
-		if mode == 0 {
-			pos = values[2]
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		mode, index = val&0x7, val>>3
+		switch mode {
+		case 0:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2]
 			if index == 1 {
-				f.Time = uint32(values[1])
+				f.Time = uint32(val)
 				findTime = true
 			}
-		} else if mode == 1 {
-			pos = values[2] + 8
-		} else if mode == 2 {
-			pos = values[2]
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		case 1:
+			pos += 8
+		case 2:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2] + values[1]
 			if index == 2 {
-				fc, err := decodeLogContent(rawBytes, values[2], values[1])
+				fc, err := decodeLogContent(rawBytes, pos, val)
 				if err != nil {
 					return nil, err
 				}
 				f.Contents = append(f.Contents, fc)
 			}
-		} else if mode == 5 {
+			pos += val
+		case 5:
 			if index == 4 {
-				f.TimeNs = uint32(rawBytes[values[2]])&255 | (uint32(rawBytes[values[2]+1])&255)<<8 | (uint32(rawBytes[values[2]+2])&255)<<16 | (uint32(rawBytes[values[2]+3])&255)<<24
+				f.TimeNs = uint32(rawBytes[pos])&255 | (uint32(rawBytes[pos+1])&255)<<8 | (uint32(rawBytes[pos+2])&255)<<16 | (uint32(rawBytes[pos+3])&255)<<24
 			}
-			pos = values[2] + 4
-		} else {
-			return nil, fmt.Errorf("unexpected mode: %d", mode)
+			pos += 4
+		default:
+			return nil, fmt.Errorf("error parsing log, unexpected mode: %d", mode)
 		}
 	}
 	if !findTime {
 		return nil, fmt.Errorf("time is not found in log from pos %d", pos)
 	}
 	if pos != endOffset {
-		return nil, fmt.Errorf("unable to parse pos %d", pos)
+		return nil, fmt.Errorf("error parsing log, pos %d, end %d", pos, endOffset)
 	}
 	return f, nil
 }
@@ -777,59 +761,50 @@ func decodeLog(rawBytes []byte, offset, length int) (f *FastLog, err error) {
 func decodeLogGroup(rawBytes []byte, offset, length int) (f *FastLogGroup, err error) {
 	f = &FastLogGroup{}
 	pos, endOffset := offset, offset+length
-	var values []int
-	var mode, index int
+	var mode, index, val int
 	for pos < endOffset {
-		values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 		if err != nil {
 			return nil, err
 		}
-		mode = values[1] & 0x7
-		index = values[1] >> 3
-		if mode == 0 {
-			pos = values[2]
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		mode, index = val&0x7, val>>3
+		switch mode {
+		case 0:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2]
-		} else if mode == 1 {
-			pos = values[2] + 8
-		} else if mode == 2 {
-			pos = values[2]
-			values, err = decodeVarInt32(rawBytes, pos, endOffset)
+		case 1:
+			pos += 8
+		case 2:
+			val, pos, err = decodeVarInt32(rawBytes, pos, endOffset)
 			if err != nil {
 				return nil, err
 			}
 			switch index {
-			case 1: //logs
-				log, err := decodeLog(rawBytes, values[2], values[1])
+			case 1:
+				log, err := decodeLog(rawBytes, pos, val)
 				if err != nil {
 					return nil, err
 				}
 				f.Logs = append(f.Logs, log)
-				break
 			case 3:
-				f.Topic = string(rawBytes[values[2] : values[2]+values[1]])
-				break
+				f.Topic = string(rawBytes[pos : pos+val])
 			case 4:
-				f.Source = string(rawBytes[values[2] : values[2]+values[1]])
-				break
-			case 6: //tags
-				tag, err := decodeTag(rawBytes, values[2], values[1])
+				f.Source = string(rawBytes[pos : pos+val])
+			case 6:
+				tag, err := decodeTag(rawBytes, pos, val)
 				if err != nil {
 					return nil, err
 				}
 				f.LogTags = append(f.LogTags, tag)
-				break
 			default:
-				break
 			}
-			pos = values[2] + values[1]
+			pos += val
 		}
 	}
 	if pos != endOffset {
-		return nil, fmt.Errorf("unable to parse pos %d", pos)
+		return nil, fmt.Errorf("error parsing log group, pos %d, end %d", pos, endOffset)
 	}
 	return f, nil
 }
@@ -837,41 +812,38 @@ func decodeLogGroup(rawBytes []byte, offset, length int) (f *FastLogGroup, err e
 // decodeLogGroups decodes logs binary data returned by GetLogsBytes API
 func decodeLogGroups(data []byte, rawSize int) (logGroups []*FastLogGroup, err error) {
 	pos, rawSize := 0, len(data)
-	var mode, index int
-	var values []int
+	var mode, index, val int
 	logGroups = []*FastLogGroup{}
 	for pos < rawSize {
-		values, err = decodeVarInt32(data, pos, rawSize)
+		val, pos, err = decodeVarInt32(data, pos, rawSize)
 		if err != nil {
 			return nil, err
 		}
-		pos = values[2]
-		mode = values[1] & 0x7
-		index = values[1] >> 3
-		if mode == 0 {
-			values, err = decodeVarInt32(data, pos, rawSize)
+		mode, index = val&0x7, val>>3
+		switch mode {
+		case 0:
+			val, pos, err = decodeVarInt32(data, pos, rawSize)
 			if err != nil {
 				return nil, err
 			}
-			pos = values[2]
-		} else if mode == 1 {
+		case 1:
 			pos += 8
-		} else if mode == 2 {
-			values, err = decodeVarInt32(data, pos, rawSize)
+		case 2:
+			val, pos, err = decodeVarInt32(data, pos, rawSize)
 			if err != nil {
 				return nil, err
 			}
 			if index == 1 {
-				f, err := decodeLogGroup(data, values[2], values[1])
+				f, err := decodeLogGroup(data, pos, val)
 				if err != nil {
 					return nil, err
 				}
 				logGroups = append(logGroups, f)
 			}
-			pos = values[1] + values[2]
-		} else if mode == 5 {
+			pos += val
+		case 5:
 			pos += 4
-		} else {
+		default:
 			return nil, fmt.Errorf("unexpected mode: %d", mode)
 		}
 	}

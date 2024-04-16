@@ -100,11 +100,8 @@ type FastLogGroup struct {
 }
 
 type PullLogsResponse struct {
-	NextCursor              string
-	RawSize                 int
-	RawSizeBeforeQuery      int
-	RawDataCountBeforeQuery int
-	LogGroups               []*FastLogGroup
+	PullLogMeta
+	LogGroups []*FastLogGroup
 }
 
 type SingleHistogram struct {

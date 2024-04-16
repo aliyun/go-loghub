@@ -150,7 +150,7 @@ func (s *LogStore) PutRawLog(rawLogData []byte) (err error) {
 	var outLen int
 	switch s.putLogCompressType {
 	case Compress_LZ4:
-		// Compresse body with lz4
+		// Compress body with lz4
 		out = make([]byte, lz4.CompressBlockBound(len(rawLogData)))
 		var hashTable [1 << 16]int
 		n, err := lz4.CompressBlock(rawLogData, out, hashTable[:])
@@ -212,7 +212,7 @@ func (s *LogStore) PostRawLogs(body []byte, hashKey *string) (err error) {
 	var outLen int
 	switch s.putLogCompressType {
 	case Compress_LZ4:
-		// Compresse body with lz4
+		// Compress body with lz4
 		out = make([]byte, lz4.CompressBlockBound(len(body)))
 		var hashTable [1 << 16]int
 		n, err := lz4.CompressBlock(body, out, hashTable[:])
@@ -599,7 +599,7 @@ func (s *LogStore) PullLogsV3(plr *PullLogRequest) (r *PullLogsResponse, err err
 			RawDataCountBeforeQuery: plm.RawDataCountBeforeQuery,
 		},
 	}
-	r.LogGroups, err = decodeLogGroups(out, r.RawSize)
+	r.LogGroups, err = DecodeLogGroups(out, r.RawSize)
 	if err != nil {
 		return nil, err
 	}
@@ -809,8 +809,8 @@ func decodeLogGroup(rawBytes []byte, offset, length int) (f *FastLogGroup, err e
 	return f, nil
 }
 
-// decodeLogGroups decodes logs binary data returned by GetLogsBytes API
-func decodeLogGroups(data []byte, rawSize int) (logGroups []*FastLogGroup, err error) {
+// DecodeLogGroups decodes logs binary data returned by GetLogsBytes API
+func DecodeLogGroups(data []byte, rawSize int) (logGroups []*FastLogGroup, err error) {
 	pos, rawSize := 0, len(data)
 	var mode, index, val int
 	logGroups = []*FastLogGroup{}

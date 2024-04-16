@@ -82,9 +82,9 @@ type FastLogContent struct {
 }
 
 type FastLog struct {
-	Time       uint32
-	TimeNsPart uint32
-	Contents   []*FastLogContent
+	Time     uint32
+	TimeNs   uint32
+	Contents []*FastLogContent
 }
 
 type FastLogTag struct {
@@ -93,10 +93,10 @@ type FastLogTag struct {
 }
 
 type FastLogGroup struct {
-	Logs   []*FastLog
-	Tags   []*FastLogTag
-	Source string
-	Topic  string
+	Logs    []*FastLog
+	LogTags []*FastLogTag
+	Source  string
+	Topic   string
 }
 
 type PullLogsResponse struct {

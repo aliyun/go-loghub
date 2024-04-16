@@ -758,7 +758,7 @@ func decodeLog(rawBytes []byte, offset, length int) (f *FastLog, err error) {
 			}
 		} else if mode == 5 {
 			if index == 4 {
-				f.TimeNsPart = uint32(rawBytes[values[2]])&255 | (uint32(rawBytes[values[2]+1])&255)<<8 | (uint32(rawBytes[values[2]+2])&255)<<16 | (uint32(rawBytes[values[2]+3])&255)<<24
+				f.TimeNs = uint32(rawBytes[values[2]])&255 | (uint32(rawBytes[values[2]+1])&255)<<8 | (uint32(rawBytes[values[2]+2])&255)<<16 | (uint32(rawBytes[values[2]+3])&255)<<24
 			}
 			pos = values[2] + 4
 		} else {
@@ -820,7 +820,7 @@ func decodeLogGroup(rawBytes []byte, offset, length int) (f *FastLogGroup, err e
 				if err != nil {
 					return nil, err
 				}
-				f.Tags = append(f.Tags, tag)
+				f.LogTags = append(f.LogTags, tag)
 				break
 			default:
 				break

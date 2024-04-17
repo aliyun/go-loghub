@@ -871,6 +871,16 @@ func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupLis
 	return
 }
 
+func (c *TokenAutoUpdateClient) PullLogsV3(plr *PullLogRequest) (r *PullLogsResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		r, err = c.logClient.PullLogsV3(plr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		gl, plm, err = c.logClient.PullLogsWithQuery(plr)

@@ -1,8 +1,8 @@
 package consumerLibrary
 
 import (
-	"os"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -143,14 +143,14 @@ func (consumerWorker *ConsumerWorker) getShardConsumer(shardId int) *ShardConsum
 
 }
 
-func (consumerWorker *ConsumerWorker) cleanShardConsumer(owned_shards []int) {
+func (consumerWorker *ConsumerWorker) cleanShardConsumer(ownedShards []int) {
 
 	consumerWorker.shardConsumer.Range(
 		func(key, value interface{}) bool {
 			shard := key.(int)
 			consumer := value.(*ShardConsumerWorker)
 
-			if !Contain(shard, owned_shards) {
+			if !Contain(shard, ownedShards) {
 				level.Info(consumerWorker.Logger).Log("msg", "try to call shut down for unassigned consumer shard", "shardId", shard)
 				consumer.consumerShutDown()
 				level.Info(consumerWorker.Logger).Log("msg", "Complete call shut down for unassigned consumer shard", "shardId", shard)

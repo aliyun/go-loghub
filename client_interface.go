@@ -13,7 +13,7 @@ import (
 // If you keep using long-lived AccessKeyID and AccessKeySecret,
 // use the example code below.
 //
-//	  provider := NewStaticCredentailsProvider(accessKeyID, accessKeySecret, securityToken)
+//	  provider := NewStaticCredentialsProvider(accessKeyID, accessKeySecret, securityToken)
 //		client := CreateNormalInterfaceV2(endpoint, provider)
 func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken string) ClientInterface {
 	client := &Client{

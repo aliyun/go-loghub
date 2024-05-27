@@ -24,5 +24,4 @@ require (
 
 retract (
 	v0.1.73
-	v0.1.74
 )

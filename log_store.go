@@ -1229,8 +1229,8 @@ func (s *LogStore) UpdateMeteringMode(meteringMode string) error {
 	r, err := request(s.project, "PUT", uri, h, requestBody)
 
 	if err != nil {
-		r.Body.Close()
 		return err
 	}
+	defer r.Body.Close()
 	return nil
 }

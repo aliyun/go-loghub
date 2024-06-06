@@ -3,6 +3,7 @@ package consumerLibrary
 import (
 	"errors"
 	"fmt"
+	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"runtime"
 	"time"
 
@@ -49,19 +50,21 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	// update last fetch time, for control fetch frequency
 	consumer.lastFetchTime = time.Now()
 
-	logGroup, pullLogMeta, err := consumer.client.pullLogs(consumer.shardId, consumer.nextFetchCursor)
+	r, err := consumer.client.pullLogs(consumer.shardId, consumer.nextFetchCursor)
 	if err != nil {
 		return err
 	}
 	// set cursors user to decide whether to save according to the execution of `process`
 	consumer.consumerCheckPointTracker.setCurrentCursor(consumer.nextFetchCursor)
-	consumer.lastFetchLogGroupList = logGroup
-	consumer.nextFetchCursor = pullLogMeta.NextCursor
-	consumer.lastFetchRawSize = pullLogMeta.RawSize
-	consumer.lastFetchGroupCount = GetLogGroupCount(consumer.lastFetchLogGroupList)
+	consumer.lastFetchLogGroupList = &sls.LogGroupList{
+		FastLogGroups: r.LogGroups,
+	}
+	consumer.nextFetchCursor = r.NextCursor
+	consumer.lastFetchRawSize = r.RawSize
+	consumer.lastFetchGroupCount = len(r.LogGroups)
 	if consumer.client.option.Query != "" {
-		consumer.lastFetchRawSizeBeforeQuery = pullLogMeta.RawSizeBeforeQuery
-		consumer.lastFetchGroupCountBeforeQuery = pullLogMeta.RawDataCountBeforeQuery
+		consumer.lastFetchRawSizeBeforeQuery = r.RawSizeBeforeQuery
+		consumer.lastFetchGroupCountBeforeQuery = r.RawDataCountBeforeQuery
 		if consumer.lastFetchRawSizeBeforeQuery == -1 {
 			consumer.lastFetchRawSizeBeforeQuery = 0
 		}

@@ -86,7 +86,74 @@ type PullLogMeta struct {
 	DataCountBeforeQuery    int
 }
 
-// GetHistogramsResponse defines response from GetHistograms call
+type FastLogContent struct {
+	Key   string
+	Value string
+}
+
+func (f *FastLogContent) GetKey() string {
+	return f.Key
+}
+
+func (f *FastLogContent) GetValue() string {
+	return f.Value
+}
+
+type FastLog struct {
+	Time     uint32
+	TimeNs   uint32
+	Contents []*FastLogContent
+}
+
+func (m *FastLog) GetContents() []*FastLogContent {
+	return m.Contents
+}
+
+type FastLogTag struct {
+	Key   string
+	Value string
+}
+
+func (f *FastLogTag) GetKey() string {
+	return f.Key
+}
+
+func (f *FastLogTag) GetValue() string {
+	return f.Value
+}
+
+type FastLogGroup struct {
+	Logs    []*FastLog
+	LogTags []*FastLogTag
+	Source  string
+	Topic   string
+}
+
+func (f *FastLogGroup) GetLogs() []*FastLog {
+	return f.Logs
+}
+
+func (f *FastLogGroup) GetLogTags() []*FastLogTag {
+	return f.LogTags
+}
+
+func (f *FastLogGroup) GetSource() string {
+	return f.Source
+}
+
+func (f *FastLogGroup) GetTopic() string {
+	return f.Topic
+}
+
+type PullLogsResponse struct {
+	PullLogMeta
+	LogGroups []*FastLogGroup
+}
+
+func (r *PullLogsResponse) GetLogGroups() []*FastLogGroup {
+	return r.LogGroups
+}
+
 type SingleHistogram struct {
 	Progress string `json:"progress"`
 	Count    int64  `json:"count"`
@@ -94,6 +161,7 @@ type SingleHistogram struct {
 	To       int64  `json:"to"`
 }
 
+// GetHistogramsResponse defines response from GetHistograms call
 type GetHistogramsResponse struct {
 	Progress   string            `json:"progress"`
 	Count      int64             `json:"count"`

@@ -139,7 +139,7 @@ func (consumer *ConsumerClient) getCursor(shardId int, from string) (string, err
 	return cursor, err
 }
 
-func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.LogGroupList, plm *sls.PullLogMeta, err error) {
+func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (r *sls.PullLogsResponse, err error) {
 	plr := &sls.PullLogRequest{
 		Project:          consumer.option.Project,
 		Logstore:         consumer.option.Logstore,
@@ -149,28 +149,29 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 		CompressType:     consumer.option.CompressType,
 	}
 	for retry := 0; retry < 3; retry++ {
-		gl, plm, err = consumer.client.PullLogsWithQuery(plr)
-		if err != nil {
-			slsError, ok := err.(*sls.Error)
-			if ok {
-				level.Warn(consumer.logger).Log("msg", "shard pull logs failed, occur sls error",
-					"shard", shardId,
-					"error", slsError,
-					"tryTimes", retry+1,
-					"cursor", cursor,
-				)
-				if slsError.HTTPCode == 403 {
-					time.Sleep(5 * time.Second)
-				}
-			} else {
-				level.Warn(consumer.logger).Log("msg", "unknown error when pull log",
-					"shardId", shardId,
-					"cursor", cursor,
-					"error", err,
-					"tryTimes", retry+1)
-			}
-			time.Sleep(200 * time.Millisecond)
+		r, err = consumer.client.PullLogsV3(plr)
+		if err == nil || retry >= 2 {
+			break
 		}
+		slsError, ok := err.(*sls.Error)
+		if ok {
+			level.Warn(consumer.logger).Log("msg", "shard pull logs failed, occur sls error",
+				"shard", shardId,
+				"error", slsError,
+				"tryTimes", retry+1,
+				"cursor", cursor,
+			)
+			if slsError.HTTPCode == 403 {
+				time.Sleep(5 * time.Second)
+			}
+		} else {
+			level.Warn(consumer.logger).Log("msg", "unknown error when pull log",
+				"shardId", shardId,
+				"cursor", cursor,
+				"error", err,
+				"tryTimes", retry+1)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 	// If you can't retry the log three times, it will return to empty list and start pulling the log cursor,
 	// so that next time you will come in and pull the function again, which is equivalent to a dead cycle.

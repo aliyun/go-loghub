@@ -281,8 +281,9 @@ type ClientInterface interface {
 	// @note if you want to pull logs continuous, set endCursor = ""
 	PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error)
-	// Deprecated: Use PullLogsWithQuery instead.
+	// Deprecated: Use PullLogsV3 instead.
 	PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error)
+	PullLogsV3(plr *PullLogRequest) (*PullLogsResponse, error)
 	PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error)
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)

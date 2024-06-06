@@ -393,9 +393,10 @@ func (m *SlsLogPackageList) GetPackages() []*SlsLogPackage {
 
 type LogGroupList struct {
 	LogGroups            []*LogGroup `protobuf:"bytes,1,rep,name=LogGroups" json:"LogGroups,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	FastLogGroups        []*FastLogGroup `json:"FastLogGroups"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *LogGroupList) Reset()         { *m = LogGroupList{} }

@@ -1,8 +1,8 @@
 package consumerLibrary
 
 import (
-	"os"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -10,6 +10,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"go.uber.org/atomic"
+	"go.uber.org/zap"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -209,4 +210,11 @@ func logConfig(option LogHubConfig) log.Logger {
 	}
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
+}
+
+func (consumerWorker *ConsumerWorker) UseZapLogger(logger *zap.Logger) {
+	adapter := newZapLoggerAdapter(logger)
+	consumerWorker.Logger = adapter
+	consumerWorker.consumerHeatBeat.logger = adapter
+	consumerWorker.client.logger = adapter
 }

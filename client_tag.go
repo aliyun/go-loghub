@@ -30,6 +30,7 @@ type ResourceTags struct {
 type ResourceSystemTags struct {
 	ResourceTags
 	TagOwnerUid string `json:"tagOwnerUid"`
+	Scope       string `json:"scope,omitempty"`
 }
 
 // ResourceUnTags tag for untag sls resouce
@@ -92,12 +93,12 @@ func NewResourceUnTags(resourceType string, resourceId string, tags []string) *R
 // NewResourceSystemTags create system tags for resource of certain type
 func NewResourceSystemTags(resourceType string, resourceId string, tagOwnerUid string, tags []ResourceTag) *ResourceSystemTags {
 	return &ResourceSystemTags{
-		ResourceTags{
+		ResourceTags: ResourceTags{
 			ResourceType: resourceType,
 			ResourceID:   []string{resourceId},
 			Tags:         tags,
 		},
-		tagOwnerUid,
+		TagOwnerUid: tagOwnerUid,
 	}
 }
 

@@ -242,7 +242,6 @@ type ClientInterface interface {
 	CreateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	UpdateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	DeleteEtlMeta(project string, etlMetaName, etlMetaKey string) (err error)
-	listEtlMeta(project string, etlMetaName, etlMetaKey, etlMetaTag string, offset, size int) (total int, count int, etlMeta []*EtlMeta, err error)
 	GetEtlMeta(project string, etlMetaName, etlMetaKey string) (etlMeta *EtlMeta, err error)
 	ListEtlMeta(project string, etlMetaName string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)
 	ListEtlMetaWithTag(project string, etlMetaName, etlMetaTag string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)

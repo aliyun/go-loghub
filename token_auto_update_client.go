@@ -641,16 +641,6 @@ func (c *TokenAutoUpdateClient) DeleteEtlMeta(project string, etlMetaName, etlMe
 	return
 }
 
-func (c *TokenAutoUpdateClient) listEtlMeta(project string, etlMetaName, etlMetaKey, etlMetaTag string, offset, size int) (total int, count int, etlMeta []*EtlMeta, err error) {
-	for i := 0; i < c.maxTryTimes; i++ {
-		total, count, etlMeta, err = c.logClient.listEtlMeta(project, etlMetaName, etlMetaKey, etlMetaTag, offset, size)
-		if !c.processError(err) {
-			return
-		}
-	}
-	return
-}
-
 func (c *TokenAutoUpdateClient) GetEtlMeta(project string, etlMetaName, etlMetaKey string) (etlMeta *EtlMeta, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		etlMeta, err = c.logClient.GetEtlMeta(project, etlMetaName, etlMetaKey)

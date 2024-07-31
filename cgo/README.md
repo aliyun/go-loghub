@@ -14,6 +14,7 @@ go env | grep CGO_ENABLED
 go env | grep CC
 ```
 
+如果 CGO_ENABLED 值是 1，则可跳过下面开启 CGO_ENABLED 的步骤。  
 
 ### 全局永久开启
 ```bash 

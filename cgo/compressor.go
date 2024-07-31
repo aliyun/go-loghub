@@ -1,18 +1,24 @@
-package cgozstd
+package internal
 
 import (
 	"sync"
 
 	"github.com/DataDog/zstd"
+	sls "github.com/aliyun/aliyun-log-go-sdk"
 )
 
-type ZstdCompressor struct {
+func SetZstdCgoCompressor(compressLevel int) error {
+	sls.SetZstdCompressor(newZstdCompressor(compressLevel))
+	return nil
+}
+
+type zstdCompressor struct {
 	ctxPool sync.Pool
 	level   int
 }
 
-func NewZstdCompressor(level int) *ZstdCompressor {
-	res := &ZstdCompressor{
+func newZstdCompressor(level int) *zstdCompressor {
+	res := &zstdCompressor{
 		level: level,
 	}
 	res.ctxPool = sync.Pool{
@@ -23,13 +29,13 @@ func NewZstdCompressor(level int) *ZstdCompressor {
 	return res
 }
 
-func (c *ZstdCompressor) Compress(src, dst []byte) ([]byte, error) {
+func (c *zstdCompressor) Compress(src, dst []byte) ([]byte, error) {
 	zstdCtx := c.ctxPool.Get().(zstd.Ctx)
 	defer c.ctxPool.Put(zstdCtx)
 	return zstdCtx.CompressLevel(dst, src, c.level)
 }
 
-func (c *ZstdCompressor) Decompress(src, dst []byte) ([]byte, error) {
+func (c *zstdCompressor) Decompress(src, dst []byte) ([]byte, error) {
 	zstdCtx := c.ctxPool.Get().(zstd.Ctx)
 	defer c.ctxPool.Put(zstdCtx)
 	return zstdCtx.Decompress(dst, src)

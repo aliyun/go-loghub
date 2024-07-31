@@ -30,12 +30,10 @@ CGO_ENABLED=1 go build
 
 ```golang
 import (
-    cgozstd "github.com/aliyun/aliyun-log-go-sdk/extensions/cgo-zstd"
+    cgo "github.com/aliyun/aliyun-log-go-sdk/cgo"
     sls "github.com/aliyun/aliyun-log-go-sdk"
 )
-
-compressLevel := 1
-sls.DefaultZstdCompressor = cgozstd.NewZstdCompressor(compressLevel)
+cgo.SetZstdCgoCompressor(1)
 ```
 
 
@@ -44,12 +42,13 @@ sls.DefaultZstdCompressor = cgozstd.NewZstdCompressor(compressLevel)
 import (
 	"time"
 
+	cgo "github.com/aliyun/aliyun-log-go-sdk/cgo"
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/golang/protobuf/proto"
 )
 
 func main() {
-
+	cgo.SetZstdCgoCompressor(1)
 	client := sls.CreateNormalInterface("endpoint",
 		"accessKeyId", "accessKeySecret", "")
 	lg := &sls.LogGroup{

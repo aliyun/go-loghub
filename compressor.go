@@ -4,7 +4,12 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-var DefaultZstdCompressor LogCompressor = NewZstdCompressor(zstd.SpeedFastest)
+var slsZstdCompressor LogCompressor = NewZstdCompressor(zstd.SpeedFastest)
+
+func SetZstdCompressor(compressor LogCompressor) error {
+	slsZstdCompressor = compressor
+	return nil
+}
 
 type LogCompressor interface {
 	// Compress src into dst.  If you have a buffer to use, you can pass it to

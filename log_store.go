@@ -169,7 +169,7 @@ func (s *LogStore) PutRawLog(rawLogData []byte) (err error) {
 		}
 		outLen = n
 	case Compress_ZSTD:
-		out, _ = DefaultZstdCompressor.Compress(rawLogData, nil)
+		out, _ = slsZstdCompressor.Compress(rawLogData, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(rawLogData)),
@@ -239,7 +239,7 @@ func (s *LogStore) PostRawLogs(body []byte, hashKey *string) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out, _ = DefaultZstdCompressor.Compress(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -311,7 +311,7 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out, _ = DefaultZstdCompressor.Compress(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -392,7 +392,7 @@ func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out, _ = DefaultZstdCompressor.Compress(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -574,7 +574,7 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 				return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", uncompressedSize, pullLogMeta.RawSize)
 			}
 		case Compress_ZSTD:
-			out, err = DefaultZstdCompressor.Decompress(buf, out)
+			out, err = slsZstdCompressor.Decompress(buf, out)
 			if err != nil {
 				return nil, nil, err
 			}

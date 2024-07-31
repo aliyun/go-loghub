@@ -1,4 +1,4 @@
-package internal
+package cgo
 
 import (
 	"sync"

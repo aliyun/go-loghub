@@ -1,8 +1,8 @@
 package consumerLibrary
 
 import (
-	"os"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -23,10 +23,10 @@ type ConsumerWorker struct {
 	Logger             log.Logger
 }
 
-// depreciated: this old logic is to automatically save to memory, and then commit at a fixed time
+// deprecated: this old logic is to automatically save to memory, and then commit at a fixed time
 // we highly recommend you to use InitConsumerWorkerWithCheckpointTracker
 func InitConsumerWorker(option LogHubConfig, do func(int, *sls.LogGroupList) string) *ConsumerWorker {
-	if option.AutoCommitDisabled {
+	if !option.AutoCommitDisabled {
 		panic("auto commit already disabled, sdk will not save any checkpoint, " +
 			"please use InitConsumerWorkerWithCheckpointTracker or set AutoCommitDisabled to false")
 	}

@@ -1,11 +1,8 @@
 package sls
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -18,30 +15,28 @@ import (
 
 func TestTempCred(t *testing.T) {
 	now := time.Now()
-	nowInMills := now.UnixMilli()
 
 	// now = lastUpdated = expirationTime
-	c := NewTempCredentials("", "", "", nowInMills, nowInMills)
+	c := newTempCredentials("", "", "", now, now)
 	assert.True(t, c.ShouldRefresh())
 
 	// now = lastUpdated < expirationTime
-	oneHourInMills := int64(60 * 60 * 1000)
-	c = NewTempCredentials("", "", "", nowInMills+oneHourInMills, nowInMills)
+	c = newTempCredentials("", "", "", now.Add(time.Hour), now)
 	assert.False(t, c.ShouldRefresh())
 
 	// expirationTime < now  < lastUpdateTime
-	c = NewTempCredentials("", "", "", nowInMills-oneHourInMills, nowInMills+oneHourInMills)
+	c = newTempCredentials("", "", "", now.Add(-time.Hour), now.Add(time.Hour))
 	assert.True(t, c.ShouldRefresh())
 	// now < expirationTime < lastUpdateTime
-	c = NewTempCredentials("", "", "", nowInMills+oneHourInMills, nowInMills+2*oneHourInMills)
+	c = newTempCredentials("", "", "", now.Add(time.Hour), now.Add(2*time.Hour))
 	assert.False(t, c.ShouldRefresh())
 
 	// lastUpdateTime < now < expirationTime and factored-expirationTime
-	c = NewTempCredentials("", "", "", nowInMills+30*oneHourInMills, nowInMills-oneHourInMills)
+	c = newTempCredentials("", "", "", now.Add(30*time.Hour), now.Add(-time.Hour))
 	assert.False(t, c.ShouldRefresh())
 
 	// lastUpdateTime < now < expirationTime , now > factored-expirationTime
-	c = NewTempCredentials("", "", "", nowInMills+oneHourInMills, nowInMills-2*oneHourInMills).WithExpiredFactor(0.5)
+	c = newTempCredentials("", "", "", now.Add(time.Hour), now.Add(-2*time.Hour)).WithExpiredFactor(0.5)
 	assert.True(t, c.ShouldRefresh())
 
 }
@@ -49,79 +44,92 @@ func TestTempCred(t *testing.T) {
 func TestUpdateFuncAdapter(t *testing.T) {
 	callCnt := 0
 	now := time.Now()
-	nowInMills := now.UnixMilli()
-	hourInMills := int64(100000)
-	id, secret, token := "a", "b", "c"
+	id, secret, token := "a1", "b1", "c1"
 	expiration := now.Add(time.Hour)
-	var err error
+	var mockErr error
 	updateFunc := func() (string, string, string, time.Time, error) {
 		callCnt++
-		return id, secret, token, expiration, err
+		return id, secret, token, expiration, mockErr
 	}
 	adp := NewUpdateFuncProviderAdapter(updateFunc)
 	adpRetry := UPDATE_FUNC_RETRY_TIMES
-	cred, err2 := adp.GetCredentials()
-	assert.Equal(t, 1, callCnt)
-	assert.NoError(t, err2)
-	assert.Equal(t, cred.AccessKeyID, id)
-	assert.Equal(t, cred.AccessKeySecret, secret)
-	assert.Equal(t, cred.SecurityToken, token)
+	// first time fetch failed
+	callCnt = 0
+	mockErr = errors.New("mock err")
+	{
+		_, err := adp.GetCredentials()
+		assert.Equal(t, 1+adpRetry, callCnt)
+		assert.Error(t, err)
+	}
 
-	// not fetch new
-	oldId := id
+	// first fetch success
+	callCnt = 0
+	mockErr = nil
+	{
+		cred, err := adp.GetCredentials()
+		assert.Equal(t, 1, callCnt)
+		assert.NoError(t, err)
+		assert.Equal(t, cred.AccessKeyID, id)
+		assert.Equal(t, cred.AccessKeySecret, secret)
+		assert.Equal(t, cred.SecurityToken, token)
+	}
+
+	// fetch again, use cached cred
+	callCnt = 0
+	mockErr = nil
 	id = "a2"
-	cred, err2 = adp.GetCredentials()
-	assert.NoError(t, err2)
-	assert.Equal(t, 1, callCnt)
-	assert.Equal(t, cred.AccessKeyID, oldId)
+	{
+		cred, err := adp.GetCredentials()
+		assert.NoError(t, err)
+		assert.Equal(t, 0, callCnt)
+		assert.Equal(t, cred.AccessKeyID, "a1")
+	}
 
-	// fetch new
-	adp.expirationInMills.Store(nowInMills - hourInMills)
-	cred, err2 = adp.GetCredentials()
-	assert.NoError(t, err2)
-	assert.Equal(t, 2, callCnt)
-	assert.Equal(t, cred.AccessKeyID, id)
+	// expired, fetch new
+	callCnt = 0
+	mockErr = nil
+	id = "a2"
+	adp.expiration.Store(now.Add(-time.Hour))
+	{
+		cred, err := adp.GetCredentials()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, callCnt)
+		assert.Equal(t, cred.AccessKeyID, "a2")
+	}
 
-	// fetch failed test
-	adp.expirationInMills.Store(nowInMills - hourInMills)
-	err = errors.New("mock err")
-	cred, err2 = adp.GetCredentials()
-	assert.Error(t, err2)
-	assert.Equal(t, 3+adpRetry, callCnt)
-	assert.Equal(t, cred, Credentials{})
+	// fetch failed test, use last cred
+	callCnt = 0
+	adp.expiration.Store(now.Add(-time.Hour))
+	mockErr = errors.New("mock err")
+	{
+		cred, err := adp.GetCredentials()
+		assert.NoError(t, err)
+		assert.Equal(t, 1+adpRetry, callCnt)
+		assert.Equal(t, cred.AccessKeyID, "a2")
+	}
 
-	// fetch in advance
+	callCnt = 0
+	adp.expiration.Store(expiration)
+	mockErr = nil
+	{
+		cred, err := adp.GetCredentials()
+		assert.NoError(t, err)
+		assert.Equal(t, 0, callCnt)
+		assert.Equal(t, cred.AccessKeyID, "a2")
+	}
+
+	// fetch in advance, fetch a new one
+	callCnt = 0
+	id = "a3"
 	adp.advanceDuration = time.Hour * 10
-	adp.expirationInMills.Store(nowInMills + hourInMills)
-	err = nil
-	cred, err2 = adp.GetCredentials()
-	assert.NoError(t, err2)
-	assert.Equal(t, 4+adpRetry, callCnt)
-	assert.Equal(t, cred.AccessKeyID, id)
-}
-
-func TestBuilderParser(t *testing.T) {
-	reqBuider := newEcsRamRoleReqBuilder(ECS_RAM_ROLE_URL_PREFIX, "test-ram-role")
-	_, err := reqBuider()
-	assert.NoError(t, err)
-
-	body := ``
-	resp := http.Response{
-		Body: ioutil.NopCloser(bytes.NewBufferString(body)),
+	adp.expiration.Store(now.Add(time.Hour))
+	mockErr = nil
+	{
+		cred, err := adp.GetCredentials()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, callCnt)
+		assert.Equal(t, cred.AccessKeyID, "a3")
 	}
-	_, err = ecsRamRoleParser(&resp)
-	assert.Error(t, err)
-	body = `{"Code": "Success", "AccessKeyID": "xxxx", "AccessKeySecret": "yyyy",
-		"SecurityToken": "zzzz", "Expiration": 234, "LastUpdated": 456
-	}`
-	resp = http.Response{
-		Body: ioutil.NopCloser(bytes.NewBufferString(body)),
-	}
-	cred, err := ecsRamRoleParser(&resp)
-	assert.NoError(t, err)
-	assert.Equal(t, "xxxx", cred.AccessKeyID)
-	assert.Equal(t, "yyyy", cred.AccessKeySecret)
-	assert.Equal(t, int64(234), cred.expirationInMills)
 }
 
 type testCredentials struct {

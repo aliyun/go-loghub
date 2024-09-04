@@ -113,7 +113,7 @@ func joinErrors(errs ...error) error {
 }
 
 const UPDATE_FUNC_RETRY_TIMES = 3
-const UPDATE_FUNC_FETCH_ADVANCED_DURATION = time.Minute
+const UPDATE_FUNC_FETCH_ADVANCED_DURATION = time.Minute * 2
 
 // Adapter for porting UpdateTokenFunc to a CredentialsProvider.
 type UpdateFuncProviderAdapter struct {

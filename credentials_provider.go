@@ -113,7 +113,7 @@ func joinErrors(errs ...error) error {
 }
 
 const UPDATE_FUNC_RETRY_TIMES = 3
-const UPDATE_FUNC_FETCH_ADVANCED_DURATION = time.Minute * 2
+const UPDATE_FUNC_FETCH_ADVANCED_DURATION = time.Minute * 3
 
 // Adapter for porting UpdateTokenFunc to a CredentialsProvider.
 type UpdateFuncProviderAdapter struct {
@@ -131,7 +131,7 @@ func updateFuncFetcher(updateFunc UpdateTokenFunction) CredentialsFetcher {
 			return nil, fmt.Errorf("updateTokenFunc fetch credentials failed: %w", err)
 		}
 
-		if !isCredentialsValid(id, secret, token, expireTime) {
+		if !isValidCredentials(id, secret, token, expireTime) {
 			return nil, fmt.Errorf("updateTokenFunc result not valid, expirationTime:%s",
 				expireTime.Format(time.RFC3339))
 		}
@@ -186,7 +186,7 @@ func (adp *UpdateFuncProviderAdapter) shouldRefresh() bool {
 	return time.Now().Add(adp.advanceDuration).After(adp.expiration.Load())
 }
 
-func isCredentialsValid(accessKeyID, accessKeySecret, securityToken string, expirationTime time.Time) bool {
+func isValidCredentials(accessKeyID, accessKeySecret, securityToken string, expirationTime time.Time) bool {
 	return accessKeyID != "" && accessKeySecret != "" && expirationTime.UnixNano() > 0
 }
 

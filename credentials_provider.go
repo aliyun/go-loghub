@@ -13,8 +13,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-const CRED_TIME_FORMAT = time.RFC3339
-
 type CredentialsProvider interface {
 	/**
 	 * GetCredentials is called everytime credentials are needed, the CredentialsProvider
@@ -46,9 +44,8 @@ func NewStaticCredentialsProvider(accessKeyID, accessKeySecret, securityToken st
 func NewUpdateFuncProviderAdapter(updateFunc UpdateTokenFunction) *UpdateFuncProviderAdapter {
 	fetcher := fetcherWithRetry(updateFuncFetcher(updateFunc), UPDATE_FUNC_RETRY_TIMES)
 	return &UpdateFuncProviderAdapter{
-		advanceDuration: UPDATE_FUNC_FETCH_ADVANCED_DURATION,
-		fetcher:         fetcher,
-		expiration:      atomic.NewTime(time.Now()),
+		fetcher:    fetcher,
+		fetchAhead: defaultFetchAhead,
 	}
 }
 
@@ -57,15 +54,15 @@ func NewUpdateFuncProviderAdapter(updateFunc UpdateTokenFunction) *UpdateFuncPro
  *
  */
 func NewEcsRamRoleCredentialsProvider(roleName string) CredentialsProvider {
-	fetcher := newEcsRamRoleFetcher(ECS_RAM_ROLE_URL_PREFIX, roleName, nil)
-	f := func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error) {
-		cred, err := fetcher()
+	fetcherFunc := fetcherWithRetry(newEcsRamRoleFetcher(ECS_RAM_ROLE_URL_PREFIX, roleName, nil), ECS_RAM_ROLE_RETRY_TIMES)
+	updateFunc := func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error) {
+		cred, err := fetcherFunc()
 		if err != nil {
 			return "", "", "", time.Now(), err
 		}
 		return cred.AccessKeyID, cred.AccessKeySecret, cred.SecurityToken, cred.Expiration, nil
 	}
-	return NewUpdateFuncProviderAdapter(f)
+	return NewUpdateFuncProviderAdapter(updateFunc)
 }
 
 /**
@@ -82,46 +79,14 @@ func (p *StaticCredentialsProvider) GetCredentials() (Credentials, error) {
 
 type CredentialsFetcher = func() (*tempCredentials, error)
 
-// Wraps a CredentialsFetcher with retry.
-//
-// @param retryTimes If <= 0, no retry will be performed.
-func fetcherWithRetry(fetcher CredentialsFetcher, retryTimes int) CredentialsFetcher {
-	return func() (*tempCredentials, error) {
-		var errs []error
-		for i := 0; i <= retryTimes; i++ {
-			cred, err := fetcher()
-			if err == nil {
-				return cred, nil
-			}
-			errs = append(errs, err)
-		}
-		return nil, fmt.Errorf("exceed max retry times, last error: %w",
-			joinErrors(errs...))
-	}
-}
-
-// Replace this with errors.Join when go version >= 1.20
-func joinErrors(errs ...error) error {
-	if errs == nil {
-		return nil
-	}
-	errStrs := make([]string, 0, len(errs))
-	for _, e := range errs {
-		errStrs = append(errStrs, e.Error())
-	}
-	return fmt.Errorf("[%s]", strings.Join(errStrs, ", "))
-}
-
 const UPDATE_FUNC_RETRY_TIMES = 3
-const UPDATE_FUNC_FETCH_ADVANCED_DURATION = time.Minute * 3
 
 // Adapter for porting UpdateTokenFunc to a CredentialsProvider.
 type UpdateFuncProviderAdapter struct {
-	cred       atomic.Value // type *Credentials
-	expiration *atomic.Time
+	cred atomic.Value // type *tempCredentials
 
-	fetcher         CredentialsFetcher
-	advanceDuration time.Duration // fetch before credentials expires in advance
+	fetcher    CredentialsFetcher
+	fetchAhead time.Duration
 }
 
 func updateFuncFetcher(updateFunc UpdateTokenFunction) CredentialsFetcher {
@@ -131,11 +96,12 @@ func updateFuncFetcher(updateFunc UpdateTokenFunction) CredentialsFetcher {
 			return nil, fmt.Errorf("updateTokenFunc fetch credentials failed: %w", err)
 		}
 
-		if !isValidCredentials(id, secret, token, expireTime) {
+		res := newTempCredentials(id, secret, token, expireTime, time.Now())
+		if !res.isValid() {
 			return nil, fmt.Errorf("updateTokenFunc result not valid, expirationTime:%s",
 				expireTime.Format(time.RFC3339))
 		}
-		return newTempCredentials(id, secret, token, expireTime, time.Now()), nil
+		return res, nil
 	}
 
 }
@@ -147,16 +113,16 @@ func updateFuncFetcher(updateFunc UpdateTokenFunction) CredentialsFetcher {
 // Retry at most maxRetryTimes if failed to fetch.
 func (adp *UpdateFuncProviderAdapter) GetCredentials() (Credentials, error) {
 	if !adp.shouldRefresh() {
-		res := adp.cred.Load().(*Credentials)
-		return *res, nil
+		res := adp.cred.Load().(*tempCredentials)
+		return res.Credentials, nil
 	}
 	level.Debug(Logger).Log("reason", "updateTokenFunc start to fetch new credentials")
 
-	res, err := adp.fetcher() // res.lastUpdatedTime is not valid, do not use it
+	res, err := adp.fetcher() // res.lastUpdatedTime is not valid, do not use its
 
 	if err == nil {
-		adp.cred.Store(&res.Credentials)
-		adp.expiration.Store(res.Expiration)
+		copy := *res
+		adp.cred.Store(&copy)
 
 		if res.Expiration.Before(time.Now()) {
 			level.Warn(Logger).Log("reason", "updateTokenFunc got a new credentials with expiration time before now",
@@ -173,21 +139,23 @@ func (adp *UpdateFuncProviderAdapter) GetCredentials() (Credentials, error) {
 	lastCred := adp.cred.Load()
 	// use last saved credentials when failed to fetch new credentials
 	if lastCred != nil {
-		return *lastCred.(*Credentials), nil
+		return lastCred.(*tempCredentials).Credentials, nil
 	}
 	return Credentials{}, fmt.Errorf("updateTokenFunc fail to fetch credentials, err:%w", err)
 }
+
+var defaultFetchAhead = time.Minute * 2
 
 func (adp *UpdateFuncProviderAdapter) shouldRefresh() bool {
 	v := adp.cred.Load()
 	if v == nil {
 		return true
 	}
-	return time.Now().Add(adp.advanceDuration).After(adp.expiration.Load())
-}
-
-func isValidCredentials(accessKeyID, accessKeySecret, securityToken string, expirationTime time.Time) bool {
-	return accessKeyID != "" && accessKeySecret != "" && expirationTime.UnixNano() > 0
+	t := v.(*tempCredentials)
+	if t.isExpired() {
+		return true
+	}
+	return time.Now().Add(adp.fetchAhead).After(t.Expiration)
 }
 
 const ECS_RAM_ROLE_URL_PREFIX = "http://100.100.100.200/latest/meta-data/ram/security-credentials/"
@@ -249,4 +217,34 @@ type ecsRamRoleHttpResp struct {
 func (r *ecsRamRoleHttpResp) isValid() bool {
 	return strings.ToLower(r.Code) == "success" && r.AccessKeyID != "" &&
 		r.AccessKeySecret != "" && !r.Expiration.IsZero() && !r.LastUpdated.IsZero()
+}
+
+// Wraps a CredentialsFetcher with retry.
+//
+// @param retryTimes If <= 0, no retry will be performed.
+func fetcherWithRetry(fetcher CredentialsFetcher, retryTimes int) CredentialsFetcher {
+	return func() (*tempCredentials, error) {
+		var errs []error
+		for i := 0; i <= retryTimes; i++ {
+			cred, err := fetcher()
+			if err == nil {
+				return cred, nil
+			}
+			errs = append(errs, err)
+		}
+		return nil, fmt.Errorf("exceed max retry times, last error: %w",
+			joinErrors(errs...))
+	}
+}
+
+// Replace this with errors.Join when go version >= 1.20
+func joinErrors(errs ...error) error {
+	if errs == nil {
+		return nil
+	}
+	errStrs := make([]string, 0, len(errs))
+	for _, e := range errs {
+		errStrs = append(errStrs, e.Error())
+	}
+	return fmt.Errorf("[%s]", strings.Join(errStrs, ", "))
 }

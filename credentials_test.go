@@ -13,32 +13,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTempCred(t *testing.T) {
+func TestShouldRefresh(t *testing.T) {
+	callCnt := 0
 	now := time.Now()
+	id, secret, token := "a1", "b1", "c1"
+	expiration := now.Add(time.Hour)
+	var mockErr error
+	updateFunc := func() (string, string, string, time.Time, error) {
+		callCnt++
+		return id, secret, token, expiration, mockErr
+	}
+	adp := NewUpdateFuncProviderAdapter(updateFunc)
+	assert.True(t, adp.shouldRefresh())
+	cred := &tempCredentials{
+		Credentials: Credentials{
+			AccessKeyID:     id,
+			AccessKeySecret: secret,
+			SecurityToken:   token,
+		},
+		Expiration: expiration,
+	}
+	adp.cred.Store(cred)
+	assert.False(t, adp.shouldRefresh())
 
-	// now = lastUpdated = expirationTime
-	c := newTempCredentials("", "", "", now, now)
-	assert.True(t, c.ShouldRefresh())
+	// expired
+	cred.Expiration = now.Add(-time.Hour)
+	adp.cred.Store(cred)
+	assert.True(t, adp.shouldRefresh())
 
-	// now = lastUpdated < expirationTime
-	c = newTempCredentials("", "", "", now.Add(time.Hour), now)
-	assert.False(t, c.ShouldRefresh())
-
-	// expirationTime < now  < lastUpdateTime
-	c = newTempCredentials("", "", "", now.Add(-time.Hour), now.Add(time.Hour))
-	assert.True(t, c.ShouldRefresh())
-	// now < expirationTime < lastUpdateTime
-	c = newTempCredentials("", "", "", now.Add(time.Hour), now.Add(2*time.Hour))
-	assert.False(t, c.ShouldRefresh())
-
-	// lastUpdateTime < now < expirationTime and factored-expirationTime
-	c = newTempCredentials("", "", "", now.Add(30*time.Hour), now.Add(-time.Hour))
-	assert.False(t, c.ShouldRefresh())
-
-	// lastUpdateTime < now < expirationTime , now > factored-expirationTime
-	c = newTempCredentials("", "", "", now.Add(time.Hour), now.Add(-2*time.Hour)).WithExpiredFactor(0.5)
-	assert.True(t, c.ShouldRefresh())
-
+	// not expire but fetch ahead
+	cred.Expiration = now.Add(-adp.fetchAhead).Add(-time.Second)
+	adp.cred.Store(cred)
+	assert.True(t, adp.shouldRefresh())
 }
 
 func TestUpdateFuncAdapter(t *testing.T) {
@@ -89,7 +95,7 @@ func TestUpdateFuncAdapter(t *testing.T) {
 	callCnt = 0
 	mockErr = nil
 	id = "a2"
-	adp.expiration.Store(now.Add(-time.Hour))
+	adp.cred.Load().(*tempCredentials).Expiration = now.Add(-time.Hour)
 	{
 		cred, err := adp.GetCredentials()
 		assert.NoError(t, err)
@@ -99,7 +105,7 @@ func TestUpdateFuncAdapter(t *testing.T) {
 
 	// fetch failed test, use last cred
 	callCnt = 0
-	adp.expiration.Store(now.Add(-time.Hour))
+	adp.cred.Load().(*tempCredentials).Expiration = now.Add(-time.Hour)
 	mockErr = errors.New("mock err")
 	{
 		cred, err := adp.GetCredentials()
@@ -109,7 +115,7 @@ func TestUpdateFuncAdapter(t *testing.T) {
 	}
 
 	callCnt = 0
-	adp.expiration.Store(expiration)
+	adp.cred.Load().(*tempCredentials).Expiration = expiration
 	mockErr = nil
 	{
 		cred, err := adp.GetCredentials()
@@ -119,10 +125,12 @@ func TestUpdateFuncAdapter(t *testing.T) {
 	}
 
 	// fetch in advance, fetch a new one
+	// use fetchCredentailsAhead
 	callCnt = 0
 	id = "a3"
-	adp.advanceDuration = time.Hour * 10
-	adp.expiration.Store(now.Add(time.Hour))
+	cred := adp.cred.Load().(*tempCredentials)
+	adp.fetchAhead = time.Hour * 10
+	cred.Expiration = now.Add(time.Hour)
 	mockErr = nil
 	{
 		cred, err := adp.GetCredentials()

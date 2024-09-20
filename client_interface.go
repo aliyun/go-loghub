@@ -13,7 +13,7 @@ import (
 // If you keep using long-lived AccessKeyID and AccessKeySecret,
 // use the example code below.
 //
-//	  provider := NewStaticCredentailsProvider(accessKeyID, accessKeySecret, securityToken)
+//	  provider := NewStaticCredentialsProvider(accessKeyID, accessKeySecret, securityToken)
 //		client := CreateNormalInterfaceV2(endpoint, provider)
 func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken string) ClientInterface {
 	client := &Client{
@@ -170,6 +170,20 @@ type ClientInterface interface {
 	// ListEventStore returns all eventStore names of project p.
 	ListEventStore(project string, offset, size int) ([]string, error)
 
+	// #################### StoreView Operations #####################
+	// CreateStoreView creates a new storeView.
+	CreateStoreView(project string, storeView *StoreView) error
+	// UpdateStoreView updates a storeView.
+	UpdateStoreView(project string, storeView *StoreView) error
+	// DeleteStoreView deletes a storeView.
+	DeleteStoreView(project string, storeViewName string) error
+	// GetStoreView returns storeView.
+	GetStoreView(project string, storeViewName string) (*StoreView, error)
+	// ListStoreViews returns all storeView names of a project.
+	ListStoreViews(project string, req *ListStoreViewsRequest) (*ListStoreViewsResponse, error)
+	// GetStoreViewIndex returns all index config of logstores in the storeView, only support storeType logstore.
+	GetStoreViewIndex(project string, storeViewName string) (*GetStoreViewIndexResponse, error)
+
 	// #################### Logtail Operations #####################
 	// ListMachineGroup returns machine group name list and the total number of machine groups.
 	// The offset starts from 0 and the size is the max number of machine groups could be returned.
@@ -228,7 +242,6 @@ type ClientInterface interface {
 	CreateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	UpdateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	DeleteEtlMeta(project string, etlMetaName, etlMetaKey string) (err error)
-	listEtlMeta(project string, etlMetaName, etlMetaKey, etlMetaTag string, offset, size int) (total int, count int, etlMeta []*EtlMeta, err error)
 	GetEtlMeta(project string, etlMetaName, etlMetaKey string) (etlMeta *EtlMeta, err error)
 	ListEtlMeta(project string, etlMetaName string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)
 	ListEtlMetaWithTag(project string, etlMetaName, etlMetaTag string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)

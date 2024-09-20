@@ -145,6 +145,7 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 		Logstore:         consumer.option.Logstore,
 		ShardID:          shardId,
 		Cursor:           cursor,
+		Query:            consumer.option.Query,
 		LogGroupMaxCount: consumer.option.MaxFetchLogGroupCount,
 		CompressType:     consumer.option.CompressType,
 	}
@@ -170,6 +171,8 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 					"tryTimes", retry+1)
 			}
 			time.Sleep(200 * time.Millisecond)
+		} else {
+			return gl, plm, nil
 		}
 	}
 	// If you can't retry the log three times, it will return to empty list and start pulling the log cursor,

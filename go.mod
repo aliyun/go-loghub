@@ -3,6 +3,7 @@ module github.com/aliyun/aliyun-log-go-sdk
 go 1.19
 
 require (
+	github.com/DataDog/zstd v1.5.5
 	github.com/Netflix/go-env v0.0.0-20220526054621-78278af1949d
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.4
 	github.com/alibabacloud-go/sts-20150401/v2 v2.0.1
@@ -48,4 +49,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract v0.1.73
+retract [v0.1.70, v0.1.78]

@@ -13,27 +13,11 @@ import (
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
-	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4"
 )
 
 // this file is deprecated and no maintenance
 // see client_logstore.go
-
-var (
-	zstdReader = newZstdReader()
-	zstdWriter = newZstdWriter()
-)
-
-func newZstdReader() *zstd.Decoder {
-	r, _ := zstd.NewReader(nil)
-	return r
-}
-
-func newZstdWriter() *zstd.Encoder {
-	w, _ := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault))
-	return w
-}
 
 // LogStore defines LogStore struct
 type LogStore struct {
@@ -185,7 +169,7 @@ func (s *LogStore) PutRawLog(rawLogData []byte) (err error) {
 		}
 		outLen = n
 	case Compress_ZSTD:
-		out = zstdWriter.EncodeAll(rawLogData, nil)
+		out, _ = slsZstdCompressor.Compress(rawLogData, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(rawLogData)),
@@ -255,7 +239,7 @@ func (s *LogStore) PostRawLogs(body []byte, hashKey *string) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out = zstdWriter.EncodeAll(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -327,7 +311,7 @@ func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out = zstdWriter.EncodeAll(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -408,7 +392,7 @@ func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string) (err error) {
 		outLen = n
 	case Compress_ZSTD:
 		// Compress body with zstd
-		out = zstdWriter.EncodeAll(body, nil)
+		out, _ = slsZstdCompressor.Compress(body, nil)
 		h = map[string]string{
 			"x-log-compresstype": "zstd",
 			"x-log-bodyrawsize":  strconv.Itoa(len(body)),
@@ -590,7 +574,7 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 				return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", uncompressedSize, pullLogMeta.RawSize)
 			}
 		case Compress_ZSTD:
-			out, err = zstdReader.DecodeAll(buf, out[:0])
+			out, err = slsZstdCompressor.Decompress(buf, out)
 			if err != nil {
 				return nil, nil, err
 			}

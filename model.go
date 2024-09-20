@@ -327,3 +327,50 @@ type PostLogStoreLogsRequest struct {
 	HashKey      *string
 	CompressType int
 }
+
+type StoreView struct {
+	Name      string            `json:"name"`
+	StoreType string            `json:"storeType"`
+	Stores    []*StoreViewStore `json:"stores"`
+}
+
+// storeType of storeView
+const (
+	STORE_VIEW_STORE_TYPE_LOGSTORE    = "logstore"
+	STORE_VIEW_STORE_TYPE_METRICSTORE = "metricstore"
+)
+
+type StoreViewStore struct {
+	Project   string `json:"project"`
+	StoreName string `json:"storeName"`
+	Query     string `json:"query,omitempty"`
+}
+
+type GetStoreViewIndexResponse struct {
+	Indexes         []*StoreViewIndex  `json:"indexes"`
+	StoreViewErrors []*StoreViewErrors `json:"storeViewErrors"`
+}
+
+type StoreViewIndex struct {
+	ProjectName string `json:"projectName"`
+	LogStore    string `json:"logstore"`
+	Index       Index  `json:"index"`
+}
+
+type StoreViewErrors struct {
+	ProjectName string `json:"projectName"`
+	LogStore    string `json:"logstore"`
+	Status      string `json:"status"`
+	Message     string `json:"message"`
+}
+
+type ListStoreViewsRequest struct {
+	Offset int `json:"offset"`
+	Size   int `json:"size"`
+}
+
+type ListStoreViewsResponse struct {
+	Total      int      `json:"total"`
+	Count      int      `json:"count"`
+	StoreViews []string `json:"storeviews"`
+}

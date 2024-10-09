@@ -1,8 +1,8 @@
 package consumerLibrary
 
 import (
-	"os"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -53,7 +53,11 @@ func InitConsumerWorkerWithCheckpointTracker(option LogHubConfig, do func(int, *
 // InitConsumerWorkerWithProcessor
 // you need save checkpoint by yourself and can do something after consumer shutdown
 func InitConsumerWorkerWithProcessor(option LogHubConfig, processor Processor) *ConsumerWorker {
-	logger := logConfig(option)
+	logger := option.Logger
+	if logger == nil {
+		logger = logConfig(option)
+	}
+
 	consumerClient := initConsumerClient(option, logger)
 	consumerHeatBeat := initConsumerHeatBeat(consumerClient, logger)
 	consumerWorker := &ConsumerWorker{

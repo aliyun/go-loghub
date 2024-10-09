@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/go-kit/kit/log"
 )
 
 type LogHubConfig struct {
@@ -65,6 +66,7 @@ type LogHubConfig struct {
 	MaxFetchLogGroupCount     int
 	CursorStartTime           int64 // Unix time stamp; Units are seconds.
 	InOrder                   bool
+	Logger                    log.Logger
 	AllowLogLevel             string
 	LogFileName               string
 	IsJsonType                bool

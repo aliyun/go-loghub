@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"github.com/go-kit/kit/log"
 	"net/http"
 	"sync"
 	"time"
@@ -58,6 +59,7 @@ type ProducerConfig struct {
 	Region           string
 	AuthVersion      sls.AuthVersionType
 	CompressType     int // only work for logstore now
+	Logger           log.Logger
 }
 
 func GetDefaultProducerConfig() *ProducerConfig {

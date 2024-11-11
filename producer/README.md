@@ -45,7 +45,10 @@ producerConfig := producer.GetDefaultProducerConfig()
 producerConfig.Endpoint = os.Getenv("Endpoint")
 provider := sls.NewStaticCredentailsProvider(os.Getenv("AccessKeyID"), os.Getenv("AccessKeySecret"), "")
 producerConfig.CredentialsProvider = provider
-producerInstance:=producer.InitProducer(producerConfig)
+producerInstance,err := producer.NewProducer(producerConfig)
+if err != nil {
+   panic(err)
+}
 ch := make(chan os.Signal)
 signal.Notify(ch, os.Kill, os.Interrupt)
 producerInstance.Start() // 启动producer实例

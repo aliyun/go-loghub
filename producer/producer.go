@@ -40,7 +40,7 @@ func NewProducer(producerConfig *ProducerConfig) (*Producer, error) {
 	return createProducerInternal(client, finalProducerConfig, logger), nil
 }
 
-// deprecated: use NewProducer instead.
+// Deprecated: use NewProducer instead.
 func InitProducer(producerConfig *ProducerConfig) *Producer {
 	logger := logConfig(producerConfig)
 	finalProducerConfig := validateProducerConfig(producerConfig, logger)

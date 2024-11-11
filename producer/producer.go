@@ -35,6 +35,7 @@ func InitProducer(producerConfig *ProducerConfig) *Producer {
 	client, err := createClient(producerConfig)
 	if err != nil {
 		level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
+		client, _ = createAkClient(producerConfig) // fallback to default static long-lived AK
 	}
 	if producerConfig.Region != "" {
 		client.SetRegion(producerConfig.Region)
@@ -86,6 +87,10 @@ func createClient(producerConfig *ProducerConfig) (sls.ClientInterface, error) {
 		return sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
 	}
 	// fallback to default static long-lived AK
+	return createAkClient(producerConfig)
+}
+
+func createAkClient(producerConfig *ProducerConfig) (sls.ClientInterface, error) {
 	staticProvider := sls.NewStaticCredentialsProvider(producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
 	return sls.CreateNormalInterfaceV2(producerConfig.Endpoint, staticProvider), nil
 }

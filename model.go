@@ -78,12 +78,17 @@ type PullLogMeta struct {
 	NextCursor              string
 	Netflow                 int
 	RawSize                 int
+	Count                   int
 	RawDataCountBeforeQuery int
 	RawSizeBeforeQuery      int
 	Lines                   int
 	LinesBeforeQuery        int
 	FailedLines             int
 	DataCountBeforeQuery    int
+}
+
+func (m *PullLogMeta) hasProgress(cursor string) bool {
+	return cursor == m.NextCursor
 }
 
 // GetHistogramsResponse defines response from GetHistograms call

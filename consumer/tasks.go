@@ -48,8 +48,8 @@ func (consumer *ShardConsumerWorker) consumerInitializeTask() (string, error) {
 func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	// update last fetch time, for control fetch frequency
 	consumer.lastFetchTime = time.Now()
-
-	logGroup, pullLogMeta, err := consumer.client.pullLogs(consumer.shardId, consumer.nextFetchCursor)
+	cursor := consumer.nextFetchCursor
+	logGroup, pullLogMeta, err := consumer.client.pullLogs(consumer.shardId, cursor)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 	consumer.lastFetchLogGroupList = logGroup
 	consumer.nextFetchCursor = pullLogMeta.NextCursor
 	consumer.lastFetchRawSize = pullLogMeta.RawSize
-	consumer.lastFetchGroupCount = GetLogGroupCount(consumer.lastFetchLogGroupList)
+	consumer.lastFetchGroupCount = pullLogMeta.Count
 	if consumer.client.option.Query != "" {
 		consumer.lastFetchRawSizeBeforeQuery = pullLogMeta.RawSizeBeforeQuery
 		consumer.lastFetchGroupCountBeforeQuery = pullLogMeta.RawDataCountBeforeQuery
@@ -74,7 +74,8 @@ func (consumer *ShardConsumerWorker) nextFetchTask() error {
 		"shardId", consumer.shardId,
 		"fetch log count", consumer.lastFetchGroupCount,
 	)
-	if consumer.lastFetchGroupCount == 0 {
+
+	if !pullLogMeta.HasProgressAgainst(cursor) {
 		consumer.lastFetchLogGroupList = nil
 		// may no new data can be pulled, no process func can trigger checkpoint saving
 		consumer.saveCheckPointIfNeeded()

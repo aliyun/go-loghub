@@ -87,7 +87,7 @@ type PullLogMeta struct {
 	DataCountBeforeQuery    int
 }
 
-func (m *PullLogMeta) hasProgress(cursor string) bool {
+func (m *PullLogMeta) HasProgressAgainst(cursor string) bool {
 	return cursor == m.NextCursor
 }
 

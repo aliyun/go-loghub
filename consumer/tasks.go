@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -93,8 +94,12 @@ func (consumer *ShardConsumerWorker) consumerProcessTask() (rollBackCheckpoint s
 			err = fmt.Errorf("get a panic when process: %v", r)
 		}
 	}()
+	groupList := consumer.lastFetchLogGroupList
+	if groupList == nil {
+		groupList = &sls.LogGroupList{}
+	}
 	if consumer.lastFetchLogGroupList != nil {
-		rollBackCheckpoint, err = consumer.processor.Process(consumer.shardId, consumer.lastFetchLogGroupList, consumer.consumerCheckPointTracker)
+		rollBackCheckpoint, err = consumer.processor.Process(consumer.shardId, groupList, consumer.consumerCheckPointTracker)
 		consumer.saveCheckPointIfNeeded()
 		if err != nil {
 			return

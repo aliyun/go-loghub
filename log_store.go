@@ -553,7 +553,14 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) ([]byte, *PullLogM
 		Netflow:    netflow,
 		Count:      count,
 	}
-
+	// If query is not nil, extract more headers
+	if plr.Query != "" {
+		pullMeta.RawSizeBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatasize")
+		pullMeta.DataCountBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatacount")
+		pullMeta.Lines, _ = ParseHeaderInt(r, "X-Log-Resultlines")
+		pullMeta.LinesBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatalines")
+		pullMeta.FailedLines, _ = ParseHeaderInt(r, "X-Log-Failedlines")
+	}
 	if rawSize == 0 {
 		return make([]byte, 0), pullMeta, nil
 	}

@@ -84,8 +84,8 @@ func (consumer *ShardConsumerWorker) consume() {
 				consumer.updateStatus(false)
 				return
 			}
-			err := consumer.nextFetchTask()
-			consumer.updateStatus(err == nil && consumer.lastFetchGroupCount > 0)
+			hasProgress, err := consumer.nextFetchTask()
+			consumer.updateStatus(err == nil && hasProgress)
 		}()
 	case PROCESSING:
 		go func() {

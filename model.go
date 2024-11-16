@@ -75,20 +75,16 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 }
 
 type PullLogMeta struct {
-	NextCursor              string
-	Netflow                 int
-	RawSize                 int
-	Count                   int
-	RawDataCountBeforeQuery int
-	RawSizeBeforeQuery      int
-	Lines                   int
-	LinesBeforeQuery        int
-	FailedLines             int
-	DataCountBeforeQuery    int
-}
-
-func (m *PullLogMeta) HasProgressAgainst(cursor string) bool {
-	return cursor == m.NextCursor
+	NextCursor string
+	Netflow    int
+	RawSize    int
+	Count      int
+	// do not rely on these var in sdk
+	RawSizeBeforeQuery   int
+	Lines                int
+	LinesBeforeQuery     int
+	FailedLines          int
+	DataCountBeforeQuery int
 }
 
 // GetHistogramsResponse defines response from GetHistograms call

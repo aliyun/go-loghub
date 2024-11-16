@@ -69,7 +69,7 @@ func TestConsumerQueryNoData(t *testing.T) {
 		ConsumerGroupName: "test-consumer",
 		ConsumerName:      "test-consumer-1",
 		CursorPosition:    END_CURSOR,
-		Query:             "* | where request_time = \"90\"",
+		Query:             "* | where \"request_method\" = 'GET'",
 	}
 
 	worker := InitConsumerWorkerWithCheckpointTracker(option, process)

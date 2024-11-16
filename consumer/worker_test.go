@@ -30,7 +30,10 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func process(shardId int, logGroupList *sls.LogGroupList, checkpointTracker CheckPointTracker) (string, error) {
-	fmt.Printf("shardId %d processing works sucess, logGroupSize: %d\n", shardId, len(logGroupList.LogGroups))
+	fmt.Printf("time: %s, shardId %d processing works success, logGroupSize: %d, currentCursor: %s\n",
+		time.Now().Format("2006-01-02 15:04:05 000"),
+		shardId, len(logGroupList.LogGroups),
+		checkpointTracker.GetCurrentCursor())
 	checkpointTracker.SaveCheckPoint(true)
 	return "", nil
 }
@@ -69,7 +72,7 @@ func TestConsumerQueryNoData(t *testing.T) {
 		ConsumerGroupName: "test-consumer",
 		ConsumerName:      "test-consumer-1",
 		CursorPosition:    END_CURSOR,
-		Query:             "* | where \"request_method\" = 'GET'",
+		Query:             "* | where \"Shard\" = '0'",
 	}
 
 	worker := InitConsumerWorkerWithCheckpointTracker(option, process)

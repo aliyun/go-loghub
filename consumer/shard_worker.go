@@ -13,6 +13,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+// todo: refine the sleep time
 const noProgressSleepTime = 500 * time.Millisecond
 const processFailedSleepTime = 50 * time.Millisecond
 const fetchFailedSleepTime = 100 * time.Millisecond // todo: use backoff interval, [1, 2, 4, 8, ...]
@@ -96,8 +97,7 @@ func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, 
 		return false, nil, nil
 	}
 
-	// todo: refine this
-	c.consumerCheckPointTracker.setCurrentCursor(plm.NextCursor)
+	c.consumerCheckPointTracker.setCurrentCursor(cursor)
 	c.consumerCheckPointTracker.setNextCursor(plm.NextCursor)
 
 	if cursor == plm.NextCursor { // already reach end of shard
@@ -165,17 +165,18 @@ func (c *ShardConsumerWorker) doShutDown() {
 	c.stopped.Store(true)
 }
 
-func (c *ShardConsumerWorker) sleepUtilNextFetch(lastFetchSuccessTime time.Time, pullLogMeta *sls.PullLogMeta) {
+// todo: refine sleep time, make it more reasonable
+func (c *ShardConsumerWorker) sleepUtilNextFetch(lastFetchSuccessTime time.Time, plm *sls.PullLogMeta) {
 	sinceLastFetch := time.Since(lastFetchSuccessTime)
 	if sinceLastFetch > time.Duration(c.client.option.DataFetchIntervalInMs)*time.Millisecond {
 		return
 	}
 
-	lastFetchRawSize := pullLogMeta.RawSize
-	lastFetchGroupCount := pullLogMeta.Count
+	lastFetchRawSize := plm.RawSize
+	lastFetchGroupCount := plm.Count
 	if c.client.option.Query != "" {
-		lastFetchRawSize = pullLogMeta.RawSizeBeforeQuery
-		lastFetchGroupCount = pullLogMeta.DataCountBeforeQuery
+		lastFetchRawSize = plm.RawSizeBeforeQuery
+		lastFetchGroupCount = plm.DataCountBeforeQuery
 	}
 
 	if lastFetchGroupCount >= c.client.option.MaxFetchLogGroupCount || lastFetchRawSize >= 4*1024*1024 {

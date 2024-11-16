@@ -54,13 +54,7 @@ func (c *ShardConsumerWorker) ensureStarted() {
 
 func (c *ShardConsumerWorker) runLoop() {
 	defer func() {
-		if r := recover(); r != nil {
-			stackBuf := make([]byte, 1<<16)
-			n := runtime.Stack(stackBuf, false)
-			level.Error(c.logger).Log("msg", "get panic in shard consumer worker runLoop",
-				"shard", c.shardId,
-				"error", r, "stack", stackBuf[:n])
-		}
+		c.recoverIfPanic("runLoop panic")
 		c.doShutDown()
 		c.stopped.Store(true)
 	}()
@@ -68,46 +62,14 @@ func (c *ShardConsumerWorker) runLoop() {
 	cursor := c.doInitCursor()
 
 	for !c.shutDownFlag.Load() {
-		// pull data
-		logGroup, pullLogMeta, err := c.client.pullLogs(c.shardId, cursor)
-		if err != nil {
-			time.Sleep(fetchFailedSleepTime)
+		fetchTime := time.Now()
+		shouldProcess, logGroup, pullLogMeta := c.doFetch(cursor)
+		if !shouldProcess {
 			continue
 		}
-		lastFetchSuccessTime := time.Now()
-		// todo: refine this
-		c.consumerCheckPointTracker.setCurrentCursor(pullLogMeta.NextCursor)
-		c.consumerCheckPointTracker.setNextCursor(pullLogMeta.NextCursor)
+		cursor = c.doProcess(cursor, logGroup, pullLogMeta)
 
-		if cursor == pullLogMeta.NextCursor {
-			c.saveCheckPointIfNeeded()
-			time.Sleep(noProgressSleepTime) // already reach end of shard
-			continue
-		}
-
-		// process
-		for !c.shutDownFlag.Load() {
-			rollBackCheckpoint, processErr := c.doProcess(logGroup)
-			c.saveCheckPointIfNeeded() // todo: should we save checkpoint here even if failed
-			if processErr != nil {
-				level.Error(c.logger).Log("msg", "process failed", "shard", c.shardId, "err", err)
-			}
-			if rollBackCheckpoint != "" {
-				cursor = rollBackCheckpoint
-				level.Warn(c.logger).Log(
-					"msg", "Checkpoints set for users have been reset",
-					"shard", c.shardId,
-					"rollBackCheckpoint", rollBackCheckpoint,
-				)
-			}
-			// process ok or rollback, we should trigger next fetch
-			if rollBackCheckpoint != "" || processErr == nil {
-				break
-			}
-			time.Sleep(processFailedSleepTime)
-		}
-
-		sleepTime := c.timeToNextFetch(lastFetchSuccessTime, pullLogMeta)
+		sleepTime := c.timeToNextFetch(fetchTime, pullLogMeta)
 		if sleepTime > 0 {
 			time.Sleep(sleepTime)
 		}
@@ -125,13 +87,51 @@ func (consumer *ShardConsumerWorker) doInitCursor() string {
 	return ""
 }
 
-func (c *ShardConsumerWorker) doProcess(logGroup *sls.LogGroupList) (rollBackCheckpoint string, err error) {
+func (c *ShardConsumerWorker) doFetch(cursor string) (shouldProcess bool, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) {
+	logGroup, pullLogMeta, err := c.client.pullLogs(c.shardId, cursor)
+	if err != nil {
+		time.Sleep(fetchFailedSleepTime)
+		return false, nil, nil
+	}
+
+	// todo: refine this
+	c.consumerCheckPointTracker.setCurrentCursor(pullLogMeta.NextCursor)
+	c.consumerCheckPointTracker.setNextCursor(pullLogMeta.NextCursor)
+
+	if cursor == pullLogMeta.NextCursor {
+		c.saveCheckPointIfNeeded()
+		time.Sleep(noProgressSleepTime) // already reach end of shard
+		return false, nil, nil
+	}
+	return true, logGroup, pullLogMeta
+}
+
+func (c *ShardConsumerWorker) doProcess(cursor string, logGroup *sls.LogGroupList, plm *sls.PullLogMeta) (nextCursor string) {
+	for !c.shutDownFlag.Load() {
+		rollBackCheckpoint, processErr := c.processInternal(logGroup)
+		c.saveCheckPointIfNeeded() // todo: should we save checkpoint here even if failed
+		if processErr != nil {
+			level.Error(c.logger).Log("msg", "process failed", "shard", c.shardId, "err", processErr)
+		}
+		if rollBackCheckpoint != "" {
+			level.Warn(c.logger).Log(
+				"msg", "Checkpoints set for users have been reset",
+				"shard", c.shardId,
+				"rollBackCheckpoint", rollBackCheckpoint,
+			)
+			return rollBackCheckpoint
+		}
+		if processErr == nil {
+			return plm.NextCursor
+		}
+		time.Sleep(processFailedSleepTime)
+	}
+	return cursor
+}
+
+func (c *ShardConsumerWorker) processInternal(logGroup *sls.LogGroupList) (rollBackCheckpoint string, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			stackBuf := make([]byte, 1<<16)
-			n := runtime.Stack(stackBuf, false)
-			level.Error(c.logger).Log("msg", "get panic in your process function",
-				"shard", c.shardId, "error", r, "stack", stackBuf[:n])
+		if r := c.recoverIfPanic("your process function paniced"); r != nil {
 			err = fmt.Errorf("get a panic when process: %v", r)
 		}
 	}()
@@ -142,7 +142,6 @@ func (c *ShardConsumerWorker) doProcess(logGroup *sls.LogGroupList) (rollBackChe
 
 // call user shutdown func and flush checkpoint
 func (c *ShardConsumerWorker) doShutDown() {
-
 	level.Warn(c.logger).Log("msg", "begin to call processor shutdown", "shard", c.shardId)
 	for {
 		err := c.processor.Shutdown(c.consumerCheckPointTracker)
@@ -208,4 +207,17 @@ func (c *ShardConsumerWorker) shutdown() {
 
 func (c *ShardConsumerWorker) isStopped() bool {
 	return c.stopped.Load()
+}
+
+func (c *ShardConsumerWorker) recoverIfPanic(reason string) any {
+	if r := recover(); r != nil {
+		stackBuf := make([]byte, 1<<16)
+		n := runtime.Stack(stackBuf, false)
+		level.Error(c.logger).Log("msg", "get panic in shard consumer worker",
+			"reason", reason,
+			"shard", c.shardId,
+			"error", r, "stack", stackBuf[:n])
+		return r
+	}
+	return nil
 }

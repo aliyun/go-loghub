@@ -38,7 +38,7 @@ func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consume
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
 		client:                    consumerClient,
 		shardId:                   shardId,
-		logger:                    logger,
+		logger:                    log.With(logger, "shard", shardId),
 		shutDownFlag:              atomic.NewBool(false),
 		stopped:                   atomic.NewBool(false),
 		lastCheckpointSaveTime:    time.Now(),
@@ -53,6 +53,7 @@ func (c *ShardConsumerWorker) ensureStarted() {
 }
 
 func (c *ShardConsumerWorker) runLoop() {
+	level.Info(c.logger).Log("msg", "runLoop started")
 	defer func() {
 		c.recoverIfPanic("runLoop panic")
 		c.doShutDown()
@@ -60,6 +61,7 @@ func (c *ShardConsumerWorker) runLoop() {
 	}()
 
 	cursor := c.doInitCursor()
+	level.Info(c.logger).Log("msg", "runLoop cursor inited", "cursor", cursor)
 
 	for !c.shutDownFlag.Load() {
 		fetchTime := time.Now()
@@ -67,12 +69,13 @@ func (c *ShardConsumerWorker) runLoop() {
 		if !shouldProcess {
 			continue
 		}
-		cursor = c.doProcess(cursor, logGroup, pullLogMeta)
 
-		sleepTime := c.timeToNextFetch(fetchTime, pullLogMeta)
-		if sleepTime > 0 {
-			time.Sleep(sleepTime)
+		cursor = c.doProcess(cursor, logGroup, pullLogMeta)
+		if c.shutDownFlag.Load() {
+			break
 		}
+
+		c.sleepUtilNextFetch(fetchTime, pullLogMeta)
 	}
 }
 
@@ -98,9 +101,9 @@ func (c *ShardConsumerWorker) doFetch(cursor string) (shouldProcess bool, logGro
 	c.consumerCheckPointTracker.setCurrentCursor(pullLogMeta.NextCursor)
 	c.consumerCheckPointTracker.setNextCursor(pullLogMeta.NextCursor)
 
-	if cursor == pullLogMeta.NextCursor {
+	if cursor == pullLogMeta.NextCursor { // already reach end of shard
 		c.saveCheckPointIfNeeded()
-		time.Sleep(noProgressSleepTime) // already reach end of shard
+		time.Sleep(noProgressSleepTime)
 		return false, nil, nil
 	}
 	return true, logGroup, pullLogMeta
@@ -109,16 +112,14 @@ func (c *ShardConsumerWorker) doFetch(cursor string) (shouldProcess bool, logGro
 func (c *ShardConsumerWorker) doProcess(cursor string, logGroup *sls.LogGroupList, plm *sls.PullLogMeta) (nextCursor string) {
 	for !c.shutDownFlag.Load() {
 		rollBackCheckpoint, processErr := c.processInternal(logGroup)
+
 		c.saveCheckPointIfNeeded() // todo: should we save checkpoint here even if failed
 		if processErr != nil {
-			level.Error(c.logger).Log("msg", "process failed", "shard", c.shardId, "err", processErr)
+			level.Error(c.logger).Log("msg", "process func returns an error", "err", processErr)
 		}
 		if rollBackCheckpoint != "" {
-			level.Warn(c.logger).Log(
-				"msg", "Checkpoints set for users have been reset",
-				"shard", c.shardId,
-				"rollBackCheckpoint", rollBackCheckpoint,
-			)
+			level.Warn(c.logger).Log("msg", "Rollback checkpoint by user",
+				"rollBackCheckpoint", rollBackCheckpoint)
 			return rollBackCheckpoint
 		}
 		if processErr == nil {
@@ -142,33 +143,33 @@ func (c *ShardConsumerWorker) processInternal(logGroup *sls.LogGroupList) (rollB
 
 // call user shutdown func and flush checkpoint
 func (c *ShardConsumerWorker) doShutDown() {
-	level.Warn(c.logger).Log("msg", "begin to call processor shutdown", "shard", c.shardId)
+	level.Info(c.logger).Log("msg", "start to shutdown, begin to call processor shutdown")
 	for {
 		err := c.processor.Shutdown(c.consumerCheckPointTracker)
 		if err == nil {
 			break
 		}
-		level.Error(c.logger).Log("msg", "failed to call processor shutdown", "shard", c.shardId, "err", err)
+		level.Error(c.logger).Log("msg", "failed to call processor shutdown", "err", err)
 		time.Sleep(shutdownFailedSleepTime)
 	}
 
-	level.Warn(c.logger).Log("msg", "call processor shutdown end, begin to flush checkpoint", "shard", c.shardId)
+	level.Info(c.logger).Log("msg", "call processor shutdown succeed, begin to flush checkpoint")
 
 	for {
 		err := c.consumerCheckPointTracker.flushCheckPoint()
 		if err == nil {
 			break
 		}
-		level.Error(c.logger).Log("msg", "failed to flush checkpoint when shutdown", "shard", c.shardId, "err", err)
+		level.Error(c.logger).Log("msg", "failed to flush checkpoint when shutting down", "err", err)
 		time.Sleep(flushCheckPointFailedSleepTime)
 	}
-	level.Warn(c.logger).Log("msg", "shard worker status shutdown_complete", "shard", c.shardId)
+	level.Info(c.logger).Log("msg", "shutting down completed, bye")
 }
 
-func (c *ShardConsumerWorker) timeToNextFetch(lastFetchSuccessTime time.Time, pullLogMeta *sls.PullLogMeta) time.Duration {
+func (c *ShardConsumerWorker) sleepUtilNextFetch(lastFetchSuccessTime time.Time, pullLogMeta *sls.PullLogMeta) {
 	sinceLastFetch := time.Since(lastFetchSuccessTime)
 	if sinceLastFetch > time.Duration(c.client.option.DataFetchIntervalInMs)*time.Millisecond {
-		return 0
+		return
 	}
 
 	lastFetchRawSize := pullLogMeta.RawSize
@@ -179,16 +180,19 @@ func (c *ShardConsumerWorker) timeToNextFetch(lastFetchSuccessTime time.Time, pu
 	}
 
 	if lastFetchGroupCount >= c.client.option.MaxFetchLogGroupCount || lastFetchRawSize >= 4*1024*1024 {
-		return 0
+		return
 	}
+	// negative or zero sleepTime is ok
 	if lastFetchGroupCount < 100 && lastFetchRawSize < 1024*1024 {
-		// The time used here is in milliseconds.
-		return 500*time.Millisecond - sinceLastFetch
+		time.Sleep(500*time.Millisecond - sinceLastFetch)
+		return
 	}
 	if lastFetchGroupCount < 500 && lastFetchRawSize < 2*1024*1024 {
-		return 200*time.Millisecond - sinceLastFetch
+		time.Sleep(200*time.Millisecond - sinceLastFetch)
+		return
 	}
-	return 50*time.Millisecond - sinceLastFetch
+
+	time.Sleep(50*time.Millisecond - sinceLastFetch)
 }
 
 func (c *ShardConsumerWorker) saveCheckPointIfNeeded() {
@@ -202,6 +206,7 @@ func (c *ShardConsumerWorker) saveCheckPointIfNeeded() {
 }
 
 func (c *ShardConsumerWorker) shutdown() {
+	level.Info(c.logger).Log("msg", "shutting down by others")
 	c.shutDownFlag.Store(true)
 }
 
@@ -215,7 +220,6 @@ func (c *ShardConsumerWorker) recoverIfPanic(reason string) any {
 		n := runtime.Stack(stackBuf, false)
 		level.Error(c.logger).Log("msg", "get panic in shard consumer worker",
 			"reason", reason,
-			"shard", c.shardId,
 			"error", r, "stack", stackBuf[:n])
 		return r
 	}

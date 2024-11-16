@@ -79,12 +79,12 @@ type PullLogMeta struct {
 	Netflow    int
 	RawSize    int
 	Count      int
-	// do not rely on these var in sdk
-	RawSizeBeforeQuery   int
-	Lines                int
-	LinesBeforeQuery     int
-	FailedLines          int
-	DataCountBeforeQuery int
+	// these fields are presents only when query is set
+	RawSizeBeforeQuery   int // processed raw size before query
+	Lines                int // result lines after query
+	LinesBeforeQuery     int // processed lines before query
+	FailedLines          int // failed lines during query
+	DataCountBeforeQuery int // processed logGroup count before query
 }
 
 // GetHistogramsResponse defines response from GetHistograms call

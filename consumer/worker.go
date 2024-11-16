@@ -137,7 +137,7 @@ func (consumerWorker *ConsumerWorker) getShardConsumer(shardId int) *ShardConsum
 	if ok {
 		return consumer.(*ShardConsumerWorker)
 	}
-	consumerIns := initShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
+	consumerIns := newShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
 	consumerWorker.shardConsumer.Store(shardId, consumerIns)
 	return consumerIns
 

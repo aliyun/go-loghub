@@ -21,6 +21,7 @@ type ConsumerWorker struct {
 	processor          Processor
 	waitGroup          sync.WaitGroup
 	Logger             log.Logger
+	metricsCollector   *MetricsCollector
 }
 
 // depreciated: this old logic is to automatically save to memory, and then commit at a fixed time
@@ -61,8 +62,9 @@ func InitConsumerWorkerWithProcessor(option LogHubConfig, processor Processor) *
 		client:             consumerClient,
 		workerShutDownFlag: atomic.NewBool(false),
 		//shardConsumer:      make(map[int]*ShardConsumerWorker),
-		processor: processor,
-		Logger:    logger,
+		processor:        processor,
+		Logger:           logger,
+		metricsCollector: newMetricCollector(&option, logger),
 	}
 	if err := consumerClient.createConsumerGroup(); err != nil {
 		level.Error(consumerWorker.Logger).Log(
@@ -103,7 +105,7 @@ func (consumerWorker *ConsumerWorker) run() {
 		}
 		consumerWorker.cleanShardConsumer(heldShards)
 		TimeToSleepInMillsecond(consumerWorker.client.option.DataFetchIntervalInMs, lastFetchTime, consumerWorker.workerShutDownFlag.Load())
-
+		consumerWorker.metricsCollector.maybeDumpMetrics()
 	}
 	level.Info(consumerWorker.Logger).Log("msg", "consumer worker try to cleanup consumers", "worker name", consumerWorker.client.option.ConsumerName)
 	consumerWorker.shutDownAndWait()
@@ -137,7 +139,7 @@ func (consumerWorker *ConsumerWorker) getShardConsumer(shardId int) *ShardConsum
 	if ok {
 		return consumer.(*ShardConsumerWorker)
 	}
-	consumerIns := newShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
+	consumerIns := newShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger, consumerWorker.metricsCollector)
 	consumerWorker.shardConsumer.Store(shardId, consumerIns)
 	return consumerIns
 

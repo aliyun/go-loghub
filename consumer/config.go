@@ -78,6 +78,7 @@ type LogHubConfig struct {
 	AutoCommitIntervalInMS    int64
 	AuthVersion               sls.AuthVersionType
 	Region                    string
+	metricDisabled            bool
 }
 
 const (

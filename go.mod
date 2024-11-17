@@ -35,6 +35,9 @@ require (
 	github.com/frankban/quicktest v1.10.2 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
+	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
+	github.com/hashicorp/go-metrics v0.5.3 // indirect
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect

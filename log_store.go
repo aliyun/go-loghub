@@ -496,7 +496,7 @@ func (s *LogStore) GetLogsBytesV2(plr *PullLogRequest) ([]byte, string, error) {
 // GetLogsBytes gets logs binary data from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next curosr can be used to read logs at next time.
-func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullLogMeta *PullLogMeta, err error) {
+func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) ([]byte, *PullLogMeta, error) {
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 		"Accept":            "application/x-protobuf",
@@ -514,102 +514,84 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, pullL
 
 	r, err := request(s.project, "GET", uri, h, nil)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	defer r.Body.Close()
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
-	pullLogMeta = &PullLogMeta{}
-	pullLogMeta.Netflow = len(buf)
 	if r.StatusCode != http.StatusOK {
 		errMsg := &Error{}
 		err = json.Unmarshal(buf, errMsg)
 		if err != nil {
-			err = fmt.Errorf("failed to get cursor")
 			dump, _ := httputil.DumpResponse(r, true)
 			if IsDebugLevelMatched(1) {
 				level.Error(Logger).Log("msg", string(dump))
 			}
-			return
+			return nil, nil, fmt.Errorf("failed parse errorCode json: %w", err)
 		}
-		err = fmt.Errorf("%v:%v", errMsg.Code, errMsg.Message)
-		return
+		return nil, nil, fmt.Errorf("%v:%v", errMsg.Code, errMsg.Message)
 	}
-	v, ok := r.Header["X-Log-Compresstype"]
-	if !ok || len(v) == 0 {
-		err = fmt.Errorf("can't find 'x-log-compresstype' header")
-		return
+	netflow := len(buf)
+
+	nextCursor, err := parseHeaderString(r.Header, "X-Log-Cursor")
+	if err != nil {
+		return nil, nil, err
 	}
-	var compressType = Compress_None
-	if v[0] == "lz4" {
-		compressType = Compress_LZ4
-	} else if v[0] == "zstd" {
-		compressType = Compress_ZSTD
-	} else {
-		err = fmt.Errorf("unexpected compress type:%v", compressType)
-		return
+	rawSize, err := ParseHeaderInt(r, "X-Log-Bodyrawsize")
+	if err != nil {
+		return nil, nil, err
+	}
+	count, err := ParseHeaderInt(r, "X-Log-Count")
+	if err != nil {
+		return nil, nil, err
+	}
+	pullMeta := &PullLogMeta{
+		RawSize:    rawSize,
+		NextCursor: nextCursor,
+		Netflow:    netflow,
+		Count:      count,
+	}
+	// If query is not nil, extract more headers
+	if plr.Query != "" {
+		pullMeta.RawSizeBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatasize")
+		pullMeta.DataCountBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatacount")
+		pullMeta.Lines, _ = ParseHeaderInt(r, "X-Log-Resultlines")
+		pullMeta.LinesBeforeQuery, _ = ParseHeaderInt(r, "X-Log-Rawdatalines")
+		pullMeta.FailedLines, _ = ParseHeaderInt(r, "X-Log-Failedlines")
+	}
+	if rawSize == 0 {
+		return make([]byte, 0), pullMeta, nil
 	}
 
-	v, ok = r.Header["X-Log-Cursor"]
-	if !ok || len(v) == 0 {
-		err = fmt.Errorf("can't find 'x-log-cursor' header")
-		return
-	}
-	pullLogMeta.NextCursor = v[0]
-	pullLogMeta.RawSize, err = ParseHeaderInt(r, "X-Log-Bodyrawsize")
+	// decompress data
+	out := make([]byte, rawSize)
+	compressType, err := parseHeaderString(r.Header, "X-Log-Compresstype")
 	if err != nil {
-		return
+		return nil, nil, err
 	}
-	if pullLogMeta.RawSize > 0 {
-		out = make([]byte, pullLogMeta.RawSize)
-		switch compressType {
-		case Compress_LZ4:
-			uncompressedSize := 0
-			if uncompressedSize, err = lz4.UncompressBlock(buf, out); err != nil {
-				return
-			}
-			if uncompressedSize != pullLogMeta.RawSize {
-				return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", uncompressedSize, pullLogMeta.RawSize)
-			}
-		case Compress_ZSTD:
-			out, err = slsZstdCompressor.Decompress(buf, out)
-			if err != nil {
-				return nil, nil, err
-			}
-			if len(out) != pullLogMeta.RawSize {
-				return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", len(out), pullLogMeta.RawSize)
-			}
-		default:
-			return nil, nil, fmt.Errorf("unexpected compress type: %d", compressType)
+	switch compressType {
+	case "lz4":
+		uncompressedSize := 0
+		if uncompressedSize, err = lz4.UncompressBlock(buf, out); err != nil {
+			return nil, nil, err
 		}
+		if uncompressedSize != rawSize {
+			return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", uncompressedSize, rawSize)
+		}
+	case "zstd":
+		out, err = slsZstdCompressor.Decompress(buf, out)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(out) != rawSize {
+			return nil, nil, fmt.Errorf("uncompressed size %d does not match 'x-log-bodyrawsize' %d", len(out), rawSize)
+		}
+	default:
+		return nil, nil, fmt.Errorf("unexpected compress type: %s", compressType)
 	}
-	// todo: add query meta
-	// If query is not nil, extract more headers
-	// if plr.Query != "" {
-	// 	pullLogMeta.RawSizeBeforeQuery, err = ParseHeaderInt(r, "X-Log-Rawdatasize")
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	pullLogMeta.DataCountBeforeQuery, err = ParseHeaderInt(r, "X-Log-Rawdatacount")
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	pullLogMeta.Lines, err = ParseHeaderInt(r, "X-Log-Resultlines")
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	pullLogMeta.LinesBeforeQuery, err = ParseHeaderInt(r, "X-Log-Rawdatalines")
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	pullLogMeta.FailedLines, err = ParseHeaderInt(r, "X-Log-Failedlines")
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// }
-	return
+	return out, pullMeta, nil
 }
 
 // LogsBytesDecode decodes logs binary data returned by GetLogsBytes API

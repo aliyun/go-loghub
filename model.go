@@ -75,15 +75,16 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 }
 
 type PullLogMeta struct {
-	NextCursor              string
-	Netflow                 int
-	RawSize                 int
-	RawDataCountBeforeQuery int
-	RawSizeBeforeQuery      int
-	Lines                   int
-	LinesBeforeQuery        int
-	FailedLines             int
-	DataCountBeforeQuery    int
+	NextCursor string
+	Netflow    int
+	RawSize    int
+	Count      int
+	// these fields are presents only when query is set
+	RawSizeBeforeQuery   int // processed raw size before query
+	Lines                int // result lines after query
+	LinesBeforeQuery     int // processed lines before query
+	FailedLines          int // failed lines during query
+	DataCountBeforeQuery int // processed logGroup count before query
 }
 
 // GetHistogramsResponse defines response from GetHistograms call

@@ -42,3 +42,11 @@ func ParseHeaderInt(r *http.Response, headerName string) (int, error) {
 	}
 	return -1, fmt.Errorf("can't find '%s' header", strings.ToLower(headerName))
 }
+
+func parseHeaderString(header http.Header, headerName string) (string, error) {
+	v, ok := header[headerName]
+	if !ok || len(v) == 0 {
+		return "", fmt.Errorf("can't find '%s' header", strings.ToLower(headerName))
+	}
+	return v[0], nil
+}

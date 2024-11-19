@@ -66,7 +66,7 @@ func (heartbeat *ConsumerHeartBeat) updateHeartShard() {
 		m[shard] = true
 	}
 
-	uploadShards := make([]int, 0, len(heartbeat.heartShards)+len(heartbeat.heldShards))
+	uploadShards := make([]int, 0, len(m))
 	for shard := range m {
 		uploadShards = append(uploadShards, shard)
 	}

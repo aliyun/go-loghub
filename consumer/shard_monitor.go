@@ -56,7 +56,7 @@ func (m *ShardMonitor) RecordProcess(err error, start time.Time) {
 }
 
 func (m *ShardMonitor) getAndResetMetrics() *MonitorMetrics {
-	// we dont need cmp and swap, only one thread would call s.sample.Store
+	// we dont need cmp and swap, only one thread would call m.metrics.Store
 	old := m.metrics.Load().(*MonitorMetrics)
 	m.metrics.Store(&MonitorMetrics{})
 	return old

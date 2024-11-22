@@ -79,7 +79,7 @@ type PullLogMeta struct {
 	Netflow    int
 	RawSize    int
 	Count      int
-	// these fields are presents only when query is set
+	// these fields are only present when query is set
 	RawSizeBeforeQuery   int // processed raw size before query
 	Lines                int // result lines after query
 	LinesBeforeQuery     int // processed lines before query

@@ -25,7 +25,6 @@ type ShardConsumerWorker struct {
 	consumerCheckPointTracker *DefaultCheckPointTracker
 	processor                 Processor
 	shardId                   int
-	metricsCollector          *MetricsCollector
 
 	logger                 log.Logger
 	lastCheckpointSaveTime time.Time
@@ -34,7 +33,7 @@ type ShardConsumerWorker struct {
 	startOnce              sync.Once
 }
 
-func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger, metricsCollector *MetricsCollector) *ShardConsumerWorker {
+func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
@@ -44,7 +43,6 @@ func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consume
 		shutDownFlag:              atomic.NewBool(false),
 		stopped:                   atomic.NewBool(false),
 		lastCheckpointSaveTime:    time.Now(),
-		metricsCollector:          metricsCollector,
 	}
 	return shardConsumeWorker
 }
@@ -67,10 +65,7 @@ func (c *ShardConsumerWorker) runLoop() {
 
 	for !c.shutDownFlag.Load() {
 		fetchTime := time.Now()
-		shouldCallProcess, logGroupList, plm, sleepTime := c.fetchLogs(cursor)
-		if sleepTime > 0 {
-			time.Sleep(sleepTime)
-		}
+		shouldCallProcess, logGroupList, plm := c.fetchLogs(cursor)
 		if !shouldCallProcess {
 			continue
 		}
@@ -95,11 +90,11 @@ func (consumer *ShardConsumerWorker) getInitCursor() string {
 	return ""
 }
 
-func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta, sleepTime time.Duration) {
-	defer c.metricsCollector.sampleMetrics(c.shardId, "fetchLogs", time.Now())
+func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) {
 	logGroupList, plm, err := c.client.pullLogs(c.shardId, cursor)
 	if err != nil {
-		return false, nil, nil, fetchFailedSleepTime
+		time.Sleep(fetchFailedSleepTime)
+		return false, nil, nil
 	}
 
 	c.consumerCheckPointTracker.setCurrentCursor(cursor)
@@ -107,14 +102,16 @@ func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, 
 
 	if cursor == plm.NextCursor { // already reach end of shard
 		c.saveCheckPointIfNeeded()
-		return false, nil, nil, noProgressSleepTime
+		time.Sleep(noProgressSleepTime)
+		return false, nil, nil
 	}
-	return true, logGroupList, plm, 0
+	return true, logGroupList, plm
 }
 
 func (c *ShardConsumerWorker) callProcess(cursor string, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) (nextCursor string) {
 	for !c.shutDownFlag.Load() {
 		rollBackCheckpoint, err := c.processInternal(logGroupList)
+
 		c.saveCheckPointIfNeeded() // todo: should we save checkpoint here even if failed
 		if err != nil {
 			level.Error(c.logger).Log("msg", "process func returns an error", "err", err)
@@ -133,7 +130,6 @@ func (c *ShardConsumerWorker) callProcess(cursor string, logGroupList *sls.LogGr
 }
 
 func (c *ShardConsumerWorker) processInternal(logGroup *sls.LogGroupList) (rollBackCheckpoint string, err error) {
-	defer c.metricsCollector.sampleMetrics(c.shardId, "processInternal", time.Now())
 	defer func() {
 		if r := c.recoverIfPanic("your process function paniced"); r != nil {
 			err = fmt.Errorf("get a panic when process: %v", r)

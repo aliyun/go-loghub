@@ -72,7 +72,7 @@ func TestConsumerQueryNoData(t *testing.T) {
 		ConsumerGroupName: "test-consumer",
 		ConsumerName:      "test-consumer-1",
 		CursorPosition:    END_CURSOR,
-		Query:             "* | where \"Shard\" <> '4'",
+		Query:             "* | where \"Shard\" = '0'",
 	}
 
 	worker := InitConsumerWorkerWithCheckpointTracker(option, process)

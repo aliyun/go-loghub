@@ -34,6 +34,7 @@ type LogHubConfig struct {
 	// 	default False, during consuption, when shard is splitted,
 	// 	if need to consume the newly splitted shard after its parent shard (read-only) is finished consumption or not.
 	// 	suggest keep it as False (don't care) until you have good reasion for it.
+	//:param Logger: default nil, optional. This logger is used to record consumer's status. The parameters AllowLogLevel, LogFileName, LogMaxSize, LogMaxBackups, LogCompass are only used when Logger is not nil.
 	//:param AllowLogLevel: default info,optional: debug,info,warn,error
 	//:param LogFileName: Setting Log File Path，for example "/root/log/log_file.log",default
 	//:param IsJsonType: Set whether the log output type is JSON，default false.

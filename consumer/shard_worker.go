@@ -1,202 +1,227 @@
 package consumerLibrary
 
 import (
+	"fmt"
+	"runtime"
 	"sync"
 	"time"
+
+	"go.uber.org/atomic"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
 
+// todo: refine the sleep time
+const noProgressSleepTime = 500 * time.Millisecond
+const processFailedSleepTime = 50 * time.Millisecond
+const fetchFailedSleepTime = 100 * time.Millisecond // todo: use backoff interval, [1, 2, 4, 8, ...]
+const shutdownFailedSleepTime = 100 * time.Millisecond
+const flushCheckPointFailedSleepTime = 100 * time.Millisecond
+
 type ShardConsumerWorker struct {
-	client                         *ConsumerClient
-	consumerCheckPointTracker      *DefaultCheckPointTracker
-	shutdownFlag                   bool
-	lastFetchLogGroupList          *sls.LogGroupList
-	nextFetchCursor                string
-	lastFetchGroupCount            int
-	lastFetchGroupCountBeforeQuery int
-	lastFetchTime                  time.Time
-	lastFetchRawSize               int
-	lastFetchRawSizeBeforeQuery    int
-	consumerStatus                 string
-	processor                      Processor
-	shardId                        int
-	// TODO: refine to channel
-	isCurrentDone bool
-	logger        log.Logger
-	// unix time
+	client                    *ConsumerClient
+	consumerCheckPointTracker *DefaultCheckPointTracker
+	processor                 Processor
+	shardId                   int
+
+	logger                 log.Logger
 	lastCheckpointSaveTime time.Time
-
-	taskLock   sync.RWMutex
-	statusLock sync.RWMutex
+	shutDownFlag           *atomic.Bool
+	stopped                *atomic.Bool
+	startOnce              sync.Once
 }
 
-func (consumer *ShardConsumerWorker) setConsumerStatus(status string) {
-	consumer.statusLock.Lock()
-	defer consumer.statusLock.Unlock()
-	consumer.consumerStatus = status
-}
-
-func (consumer *ShardConsumerWorker) getConsumerStatus() string {
-	consumer.statusLock.RLock()
-	defer consumer.statusLock.RUnlock()
-	return consumer.consumerStatus
-}
-
-func initShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
+func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
-		shutdownFlag:              false,
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
 		client:                    consumerClient,
-		consumerStatus:            INITIALIZING,
 		shardId:                   shardId,
-		lastFetchTime:             time.Now(),
-		isCurrentDone:             true,
-		logger:                    logger,
+		logger:                    log.With(logger, "shard", shardId),
+		shutDownFlag:              atomic.NewBool(false),
+		stopped:                   atomic.NewBool(false),
+		lastCheckpointSaveTime:    time.Now(),
 	}
 	return shardConsumeWorker
 }
 
-func (consumer *ShardConsumerWorker) consume() {
-	if !consumer.isTaskDone() {
+func (c *ShardConsumerWorker) ensureStarted() {
+	c.startOnce.Do(func() {
+		go c.runLoop()
+	})
+}
+
+func (c *ShardConsumerWorker) runLoop() {
+	level.Info(c.logger).Log("msg", "runLoop started")
+	defer func() {
+		c.recoverIfPanic("runLoop panic")
+		c.doShutDown()
+	}()
+
+	cursor := c.getInitCursor()
+	level.Info(c.logger).Log("msg", "runLoop got init cursor", "cursor", cursor)
+
+	for !c.shutDownFlag.Load() {
+		fetchTime := time.Now()
+		shouldCallProcess, logGroupList, plm := c.fetchLogs(cursor)
+		if !shouldCallProcess {
+			continue
+		}
+
+		cursor = c.callProcess(cursor, logGroupList, plm)
+		if c.shutDownFlag.Load() {
+			break
+		}
+
+		c.sleepUtilNextFetch(fetchTime, plm)
+	}
+}
+
+func (consumer *ShardConsumerWorker) getInitCursor() string {
+	for !consumer.shutDownFlag.Load() {
+		initCursor, err := consumer.consumerInitializeTask()
+		if err == nil {
+			return initCursor
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return ""
+}
+
+func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) {
+	logGroupList, plm, err := c.client.pullLogs(c.shardId, cursor)
+	if err != nil {
+		time.Sleep(fetchFailedSleepTime)
+		return false, nil, nil
+	}
+
+	c.consumerCheckPointTracker.setCurrentCursor(cursor)
+	c.consumerCheckPointTracker.setNextCursor(plm.NextCursor)
+
+	if cursor == plm.NextCursor { // already reach end of shard
+		c.saveCheckPointIfNeeded()
+		time.Sleep(noProgressSleepTime)
+		return false, nil, nil
+	}
+	return true, logGroupList, plm
+}
+
+func (c *ShardConsumerWorker) callProcess(cursor string, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) (nextCursor string) {
+	for !c.shutDownFlag.Load() {
+		rollBackCheckpoint, err := c.processInternal(logGroupList)
+
+		c.saveCheckPointIfNeeded() // todo: should we save checkpoint here even if failed
+		if err != nil {
+			level.Error(c.logger).Log("msg", "process func returns an error", "err", err)
+		}
+		if rollBackCheckpoint != "" {
+			level.Warn(c.logger).Log("msg", "Rollback checkpoint by user",
+				"rollBackCheckpoint", rollBackCheckpoint)
+			return rollBackCheckpoint
+		}
+		if err == nil {
+			return plm.NextCursor
+		}
+		time.Sleep(processFailedSleepTime)
+	}
+	return cursor
+}
+
+func (c *ShardConsumerWorker) processInternal(logGroup *sls.LogGroupList) (rollBackCheckpoint string, err error) {
+	defer func() {
+		if r := c.recoverIfPanic("your process function paniced"); r != nil {
+			err = fmt.Errorf("get a panic when process: %v", r)
+		}
+	}()
+
+	return c.processor.Process(c.shardId, logGroup, c.consumerCheckPointTracker)
+}
+
+// call user shutdown func and flush checkpoint
+func (c *ShardConsumerWorker) doShutDown() {
+	level.Info(c.logger).Log("msg", "start to shutdown, begin to call processor shutdown")
+	for {
+		err := c.processor.Shutdown(c.consumerCheckPointTracker) // todo: should we catch panic here?
+		if err == nil {
+			break
+		}
+		level.Error(c.logger).Log("msg", "failed to call processor shutdown", "err", err)
+		time.Sleep(shutdownFailedSleepTime)
+	}
+
+	level.Info(c.logger).Log("msg", "call processor shutdown succeed, begin to flush checkpoint")
+
+	for {
+		err := c.consumerCheckPointTracker.flushCheckPoint()
+		if err == nil {
+			break
+		}
+		level.Error(c.logger).Log("msg", "failed to flush checkpoint when shutting down", "err", err)
+		time.Sleep(flushCheckPointFailedSleepTime)
+	}
+	level.Info(c.logger).Log("msg", "shutting down completed, bye")
+	c.stopped.Store(true)
+}
+
+// todo: refine sleep time, make it more reasonable
+func (c *ShardConsumerWorker) sleepUtilNextFetch(lastFetchSuccessTime time.Time, plm *sls.PullLogMeta) {
+	sinceLastFetch := time.Since(lastFetchSuccessTime)
+	if sinceLastFetch > time.Duration(c.client.option.DataFetchIntervalInMs)*time.Millisecond {
 		return
 	}
 
-	// start a new task
-	// initial task / fetch data task / processing task / shutdown task
-	consumer.setTaskDoneFlag(false)
-	switch consumer.getConsumerStatus() {
-	case INITIALIZING:
-		go func() {
-			cursor, err := consumer.consumerInitializeTask()
-			if err == nil {
-				consumer.nextFetchCursor = cursor
-			}
-			consumer.updateStatus(err == nil)
-		}()
-	case PULLING:
-		go func() {
-			if !consumer.shouldFetch() {
-				level.Debug(consumer.logger).Log("msg", "Pull Log Current Limitation and Re-Pull Log")
-				consumer.updateStatus(false)
-				return
-			}
-			hasProgress, err := consumer.nextFetchTask()
-			consumer.updateStatus(err == nil && hasProgress)
-		}()
-	case PROCESSING:
-		go func() {
-			rollBackCheckpoint, err := consumer.consumerProcessTask()
-			if err != nil {
-				level.Warn(consumer.logger).Log("messge", "process failed", "err", err)
-			}
-			if rollBackCheckpoint != "" {
-				consumer.nextFetchCursor = rollBackCheckpoint
-				level.Info(consumer.logger).Log(
-					"msg", "Checkpoints set for users have been reset",
-					"shardId", consumer.shardId,
-					"rollBackCheckpoint", rollBackCheckpoint,
-				)
-			}
-			consumer.updateStatus(err == nil)
-		}()
-	case SHUTTING_DOWN:
-		go func() {
-			err := consumer.processor.Shutdown(consumer.consumerCheckPointTracker)
-			if err != nil {
-				level.Error(consumer.logger).Log("msg", "failed to call processor shutdown", "err", err)
-				consumer.updateStatus(false)
-				return
-			}
-
-			err = consumer.consumerCheckPointTracker.flushCheckPoint()
-			if err == nil {
-				level.Info(consumer.logger).Log("msg", "shard worker status shutdown_complete", "shardWorkerId", consumer.shardId)
-			} else {
-				level.Warn(consumer.logger).Log("msg", "failed to flush checkpoint when shutdown", "err", err)
-			}
-
-			consumer.updateStatus(err == nil)
-		}()
-	default:
-		consumer.setTaskDoneFlag(true)
-	}
-}
-
-func (consumer *ShardConsumerWorker) updateStatus(success bool) {
-	status := consumer.getConsumerStatus()
-	if status == SHUTTING_DOWN {
-		if success {
-			consumer.setConsumerStatus(SHUTDOWN_COMPLETE)
-		}
-	} else if consumer.shutdownFlag {
-		consumer.setConsumerStatus(SHUTTING_DOWN)
-	} else if success {
-		switch status {
-		case PULLING:
-			consumer.setConsumerStatus(PROCESSING)
-		case INITIALIZING, PROCESSING:
-			consumer.setConsumerStatus(PULLING)
-		}
+	lastFetchRawSize := plm.RawSize
+	lastFetchGroupCount := plm.Count
+	if c.client.option.Query != "" {
+		lastFetchRawSize = plm.RawSizeBeforeQuery
+		lastFetchGroupCount = plm.DataCountBeforeQuery
 	}
 
-	consumer.setTaskDoneFlag(true)
-}
-
-func (consumer *ShardConsumerWorker) shouldFetch() bool {
-	lastFetchRawSize := consumer.lastFetchRawSize
-	lastFetchGroupCount := consumer.lastFetchGroupCount
-
-	if consumer.client.option.Query != "" {
-		lastFetchRawSize = consumer.lastFetchRawSizeBeforeQuery
-		lastFetchGroupCount = consumer.lastFetchGroupCountBeforeQuery
+	if lastFetchGroupCount >= c.client.option.MaxFetchLogGroupCount || lastFetchRawSize >= 4*1024*1024 {
+		return
 	}
-	if lastFetchGroupCount >= consumer.client.option.MaxFetchLogGroupCount || lastFetchRawSize >= 4*1024*1024 {
-		return true
-	}
-	duration := time.Since(consumer.lastFetchTime)
+	// negative or zero sleepTime is ok
 	if lastFetchGroupCount < 100 && lastFetchRawSize < 1024*1024 {
-		// The time used here is in milliseconds.
-		return duration > 500*time.Millisecond
-	} else if lastFetchGroupCount < 500 && lastFetchRawSize < 2*1024*1024 {
-		return duration > 200*time.Millisecond
-	} else {
-		return duration > 50*time.Millisecond
-	}
-}
-
-func (consumer *ShardConsumerWorker) saveCheckPointIfNeeded() {
-	if consumer.client.option.AutoCommitDisabled {
+		time.Sleep(500*time.Millisecond - sinceLastFetch)
 		return
 	}
-	if time.Since(consumer.lastCheckpointSaveTime) > time.Millisecond*time.Duration(consumer.client.option.AutoCommitIntervalInMS) {
-		consumer.consumerCheckPointTracker.flushCheckPoint()
-		consumer.lastCheckpointSaveTime = time.Now()
+	if lastFetchGroupCount < 500 && lastFetchRawSize < 2*1024*1024 {
+		time.Sleep(200*time.Millisecond - sinceLastFetch)
+		return
+	}
+
+	time.Sleep(50*time.Millisecond - sinceLastFetch)
+}
+
+func (c *ShardConsumerWorker) saveCheckPointIfNeeded() {
+	if c.client.option.AutoCommitDisabled {
+		return
+	}
+	if time.Since(c.lastCheckpointSaveTime) > time.Millisecond*time.Duration(c.client.option.AutoCommitIntervalInMS) {
+		c.consumerCheckPointTracker.flushCheckPoint()
+		c.lastCheckpointSaveTime = time.Now()
 	}
 }
 
-func (consumer *ShardConsumerWorker) consumerShutDown() {
-	consumer.shutdownFlag = true
-	if !consumer.isShutDownComplete() {
-		consumer.consume()
+func (c *ShardConsumerWorker) shutdown() {
+	level.Info(c.logger).Log("msg", "shutting down by others")
+	c.shutDownFlag.Store(true)
+}
+
+func (c *ShardConsumerWorker) isStopped() bool {
+	return c.stopped.Load()
+}
+
+func (c *ShardConsumerWorker) recoverIfPanic(reason string) any {
+	if r := recover(); r != nil {
+		stackBuf := make([]byte, 1<<16)
+		n := runtime.Stack(stackBuf, false)
+		level.Error(c.logger).Log("msg", "get panic in shard consumer worker",
+			"reason", reason,
+			"error", r, "stack", stackBuf[:n])
+		return r
 	}
-}
-
-func (consumer *ShardConsumerWorker) isShutDownComplete() bool {
-	return consumer.getConsumerStatus() == SHUTDOWN_COMPLETE
-}
-
-func (consumer *ShardConsumerWorker) setTaskDoneFlag(done bool) {
-	consumer.taskLock.Lock()
-	defer consumer.taskLock.Unlock()
-	consumer.isCurrentDone = done
-}
-
-func (consumer *ShardConsumerWorker) isTaskDone() bool {
-	consumer.taskLock.RLock()
-	defer consumer.taskLock.RUnlock()
-	return consumer.isCurrentDone
+	return nil
 }

@@ -103,7 +103,7 @@ func (consumerWorker *ConsumerWorker) run() {
 				break
 			}
 			shardConsumer := consumerWorker.getShardConsumer(shard)
-			shardConsumer.consume()
+			shardConsumer.ensureStarted()
 		}
 		consumerWorker.cleanShardConsumer(heldShards)
 		TimeToSleepInMillsecond(consumerWorker.client.option.DataFetchIntervalInMs, lastFetchTime, consumerWorker.workerShutDownFlag.Load())
@@ -121,8 +121,8 @@ func (consumerWorker *ConsumerWorker) shutDownAndWait() {
 			func(key, value interface{}) bool {
 				count++
 				consumer := value.(*ShardConsumerWorker)
-				if !consumer.isShutDownComplete() {
-					consumer.consumerShutDown()
+				if !consumer.isStopped() {
+					consumer.shutdown()
 				} else {
 					consumerWorker.shardConsumer.Delete(key)
 				}
@@ -141,7 +141,7 @@ func (consumerWorker *ConsumerWorker) getShardConsumer(shardId int) *ShardConsum
 	if ok {
 		return consumer.(*ShardConsumerWorker)
 	}
-	consumerIns := initShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
+	consumerIns := newShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
 	consumerWorker.shardConsumer.Store(shardId, consumerIns)
 	return consumerIns
 
@@ -156,11 +156,11 @@ func (consumerWorker *ConsumerWorker) cleanShardConsumer(owned_shards []int) {
 
 			if !Contain(shard, owned_shards) {
 				level.Info(consumerWorker.Logger).Log("msg", "try to call shut down for unassigned consumer shard", "shardId", shard)
-				consumer.consumerShutDown()
+				consumer.shutdown()
 				level.Info(consumerWorker.Logger).Log("msg", "Complete call shut down for unassigned consumer shard", "shardId", shard)
 			}
 
-			if consumer.isShutDownComplete() {
+			if consumer.isStopped() {
 				isDeleteShard := consumerWorker.consumerHeatBeat.removeHeartShard(shard)
 				if isDeleteShard {
 					level.Info(consumerWorker.Logger).Log("msg", "Remove an assigned consumer shard", "shardId", shard)

@@ -100,6 +100,9 @@ func (consumerWorker *ConsumerWorker) run() {
 			}
 			shardConsumer := consumerWorker.getShardConsumer(shard)
 			shardConsumer.ensureStarted()
+			if shardConsumer.shouldReportMetrics() {
+				shardConsumer.reportMetrics()
+			}
 		}
 		consumerWorker.cleanShardConsumer(heldShards)
 		TimeToSleepInMillsecond(consumerWorker.client.option.DataFetchIntervalInMs, lastFetchTime, consumerWorker.workerShutDownFlag.Load())

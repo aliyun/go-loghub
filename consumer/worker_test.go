@@ -110,11 +110,11 @@ func process_with_log_id(shardId int, logGroupList *sls.LogGroupList, checkpoint
 		shardId, len(logGroupList.LogGroups),
 		checkpointTracker.GetCurrentCursor())
 	for _, logGroup := range logGroupList.LogGroups {
-		logGroupId := logGroup.GetLogGroupId()
-		fmt.Println("log group id: ", logGroupId)
+		logGroupCursor := logGroup.GetCursor()
+		fmt.Println("log group cursor: ", logGroupCursor)
 		for i, log := range logGroup.Logs {
-			log_id := logGroup.GetLogId(i)
-			fmt.Printf("log %d has %d keys, and log id: %s\n", i, len(log.Contents), log_id)
+			log_key := fmt.Sprintf("%d|%s|%d", shardId, logGroupCursor, i)
+			fmt.Printf("log %d has %d keys, and log key: %s\n", i, len(log.Contents), log_key)
 		}
 	}
 	return "", nil

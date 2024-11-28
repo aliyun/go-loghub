@@ -39,14 +39,14 @@ func process_with_log_id(shardId int, logGroupList *sls.LogGroupList, checkpoint
 
 	// start consume logs
 	for _, logGroup := range logGroupList.LogGroups {
-		// logGroupId is empty string if failed
-		logGroupId := logGroup.GetLogGroupId() // eg: "4|MTczMjE1NDI4NzIxMzIzMjAzNg=="
-		fmt.Println("log group id: ", logGroupId)
+		// logGroupCursor is empty string if failed
+		logGroupCursor := logGroup.GetCursor()
+		fmt.Println("log group cursor: ", logGroupCursor)
 
 		for i, log := range logGroup.Logs {
-			// log id is empty string if failed
-			log_id := logGroup.GetLogId(i) // eg: "4|MTczMjE1NDI4NzIxMzIzMjAzNg==|5|4"
-			fmt.Printf("log %d has %d keys, and log id: %s\n", i, len(log.Contents), log_id)
+			// you can assamble the log_key yourself with shardId, logGroupCursor and log index in the logGroup
+			log_key := fmt.Sprintf("%d|%s|%d", shardId, logGroupCursor, i)
+			fmt.Printf("log %d has %d keyValues, and log key is: %s\n", i, len(log.Contents), log_key)
 		}
 	}
 	return "", nil

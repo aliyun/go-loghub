@@ -643,7 +643,7 @@ func (s *LogStore) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm
 		return nil, nil, err
 	}
 	if plm.Count > 0 && plm.readLastCursor != "" {
-		gl.addIdIfPossible(plm.readLastCursor, plr.ShardID)
+		gl.addCursorIfPossible(plm.readLastCursor)
 	}
 	return
 }

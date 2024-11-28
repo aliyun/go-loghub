@@ -96,14 +96,12 @@ func TestLogGroupIdentity(t *testing.T) {
 			},
 		},
 	}
-	err := logGroupList.addIdIfPossible("MTcyOTA3MDYxODQyODA0NDY1NQ==", 0)
+	err := logGroupList.addCursorIfPossible("1729070618428044655")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "0|MTcyOTA3MDYxODQyODA0NDY1NQ==", logGroupList.LogGroups[2].GetLogGroupId())
-	assert.Equal(t, "0|MTcyOTA3MDYxODQyODA0NDY1NA==", logGroupList.LogGroups[1].GetLogGroupId())
-	assert.Equal(t, "0|MTcyOTA3MDYxODQyODA0NDY1Mw==", logGroupList.LogGroups[0].GetLogGroupId())
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1NQ==", logGroupList.LogGroups[2].GetCursor())
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1NA==", logGroupList.LogGroups[1].GetCursor())
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1Mw==", logGroupList.LogGroups[0].GetCursor())
 	empty := &LogGroup{}
-	assert.Equal(t, empty.GetLogGroupId(), "")
-	assert.Equal(t, "0|MTcyOTA3MDYxODQyODA0NDY1NA==|2|1", logGroupList.LogGroups[1].GetLogId(1))
-	assert.Equal(t, "0|MTcyOTA3MDYxODQyODA0NDY1NQ==|3|0", logGroupList.LogGroups[2].GetLogId(0))
+	assert.Equal(t, empty.GetCursor(), "")
 }

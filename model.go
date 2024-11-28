@@ -2,7 +2,6 @@ package sls
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -380,34 +379,12 @@ type ListStoreViewsResponse struct {
 	StoreViews []string `json:"storeviews"`
 }
 
-type logGroupIdentity struct {
-	cursor string
-	shard  int
+// If cursor is unknown, returns empty string
+func (l *LogGroup) GetCursor() string {
+	return l.cursor
 }
 
-// GetLogGroupId returns the log group id (shard|cursor)
-// If id is unknown, returns empty string
-func (l *LogGroup) GetLogGroupId() string {
-	if l.identity == nil {
-		return ""
-	}
-	return fmt.Sprintf("%d|%s", l.identity.shard, l.identity.cursor)
-}
-
-// index must be less than len(LogGroup.Logs)
-// if no log id found, the returned log id is empty string
-func (l *LogGroup) GetLogId(index int) string {
-	if index > len(l.Logs) {
-		return ""
-	}
-	logGroupId := l.GetLogGroupId()
-	if logGroupId == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s|%d|%d", logGroupId, len(l.Logs), index)
-}
-
-func (l *LogGroupList) addIdIfPossible(readLastCursor string, shard int) error {
+func (l *LogGroupList) addCursorIfPossible(readLastCursor string) error {
 	lastCursorInt, err := strconv.ParseInt(readLastCursor, 10, 64)
 	if err != nil {
 		if IsDebugLevelMatched(1) {
@@ -418,10 +395,7 @@ func (l *LogGroupList) addIdIfPossible(readLastCursor string, shard int) error {
 	}
 	cursor := lastCursorInt - int64(len(l.LogGroups)) + 1
 	for i := 0; i < len(l.LogGroups); i++ {
-		l.LogGroups[i].identity = &logGroupIdentity{
-			cursor: encodeCursor(cursor),
-			shard:  shard,
-		}
+		l.LogGroups[i].cursor = encodeCursor(cursor)
 		cursor++
 	}
 	return nil

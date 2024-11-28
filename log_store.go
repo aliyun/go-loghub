@@ -547,11 +547,13 @@ func (s *LogStore) GetLogsBytesWithQuery(plr *PullLogRequest) ([]byte, *PullLogM
 	if err != nil {
 		return nil, nil, err
 	}
+	readLastCursor, _ := parseHeaderString(r.Header, "X-Log-Read-Last-Cursor")
 	pullMeta := &PullLogMeta{
-		RawSize:    rawSize,
-		NextCursor: nextCursor,
-		Netflow:    netflow,
-		Count:      count,
+		RawSize:        rawSize,
+		NextCursor:     nextCursor,
+		Netflow:        netflow,
+		Count:          count,
+		readLastCursor: readLastCursor,
 	}
 	// If query is not nil, extract more headers
 	if plr.Query != "" {
@@ -640,7 +642,9 @@ func (s *LogStore) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm
 	if err != nil {
 		return nil, nil, err
 	}
-
+	if plm.Count > 0 && plm.readLastCursor != "" {
+		gl.addIdIfPossible(plm.readLastCursor, plr.ShardID)
+	}
 	return
 }
 

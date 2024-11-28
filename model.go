@@ -2,10 +2,13 @@ package sls
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/go-kit/kit/log/level"
 )
 
 // GetLogRequest for GetLogsV2
@@ -75,10 +78,11 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 }
 
 type PullLogMeta struct {
-	NextCursor string
-	Netflow    int
-	RawSize    int
-	Count      int
+	NextCursor     string
+	Netflow        int
+	RawSize        int
+	Count          int
+	readLastCursor string // int64 string, eg: "1732154287213232020"
 	// these fields are only present when query is set
 	RawSizeBeforeQuery   int // processed raw size before query
 	Lines                int // result lines after query
@@ -374,4 +378,51 @@ type ListStoreViewsResponse struct {
 	Total      int      `json:"total"`
 	Count      int      `json:"count"`
 	StoreViews []string `json:"storeviews"`
+}
+
+type logGroupIdentity struct {
+	cursor string
+	shard  int
+}
+
+// GetLogGroupId returns the log group id (shard|cursor)
+// If id is unknown, returns empty string
+func (l *LogGroup) GetLogGroupId() string {
+	if l.identity == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d|%s", l.identity.shard, l.identity.cursor)
+}
+
+// index must be less than len(LogGroup.Logs)
+// if no log id found, the returned log id is empty string
+func (l *LogGroup) GetLogId(index int) string {
+	if index > len(l.Logs) {
+		return ""
+	}
+	logGroupId := l.GetLogGroupId()
+	if logGroupId == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s|%d|%d", logGroupId, len(l.Logs), index)
+}
+
+func (l *LogGroupList) addIdIfPossible(readLastCursor string, shard int) error {
+	lastCursorInt, err := strconv.ParseInt(readLastCursor, 10, 64)
+	if err != nil {
+		if IsDebugLevelMatched(1) {
+			level.Error(Logger).Log("msg", "decode readLastCursor failed",
+				"cursor", readLastCursor, "err", err)
+		}
+		return err
+	}
+	cursor := lastCursorInt - int64(len(l.LogGroups)) + 1
+	for i := 0; i < len(l.LogGroups); i++ {
+		l.LogGroups[i].identity = &logGroupIdentity{
+			cursor: encodeCursor(cursor),
+			shard:  shard,
+		}
+		cursor++
+	}
+	return nil
 }

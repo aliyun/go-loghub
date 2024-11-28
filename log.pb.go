@@ -212,6 +212,7 @@ type LogGroup struct {
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
+	identity             *logGroupIdentity `json:"-"`
 }
 
 func (m *LogGroup) Reset()         { *m = LogGroup{} }

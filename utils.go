@@ -1,6 +1,7 @@
 package sls
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -49,4 +50,20 @@ func parseHeaderString(header http.Header, headerName string) (string, error) {
 		return "", fmt.Errorf("can't find '%s' header", strings.ToLower(headerName))
 	}
 	return v[0], nil
+}
+
+func decodeCursor(cursor string) (int64, error) {
+	c, err := base64.StdEncoding.DecodeString(cursor)
+	if err != nil {
+		return 0, err
+	}
+	cursorInt, err := strconv.ParseInt(string(c), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return cursorInt, nil
+}
+
+func encodeCursor(cursor int64) string {
+	return base64.StdEncoding.EncodeToString([]byte(strconv.FormatInt(cursor, 10)))
 }

@@ -82,3 +82,40 @@ func TestConsumerQueryNoData(t *testing.T) {
 	worker.StopAndWait()
 
 }
+
+func TestConsumerWithLogId(t *testing.T) {
+	option := LogHubConfig{
+		Endpoint: os.Getenv("LOG_TEST_ENDPOINT"),
+		CredentialsProvider: sls.NewStaticCredentialsProvider(
+			os.Getenv("LOG_TEST_ACCESS_KEY_ID"),
+			os.Getenv("LOG_TEST_ACCESS_KEY_SECRET"), ""),
+		Project:           os.Getenv("LOG_TEST_PROJECT"),
+		Logstore:          os.Getenv("LOG_TEST_LOGSTORE"),
+		ConsumerGroupName: "test-consumer",
+		ConsumerName:      "test-consumer-1",
+		CursorPosition:    END_CURSOR,
+	}
+
+	worker := InitConsumerWorkerWithCheckpointTracker(option, process_with_log_id)
+
+	worker.Start()
+	time.Sleep(time.Second * 2000)
+	worker.StopAndWait()
+
+}
+
+func process_with_log_id(shardId int, logGroupList *sls.LogGroupList, checkpointTracker CheckPointTracker) (string, error) {
+	fmt.Printf("time: %s, shardId %d processing works success, logGroupSize: %d, currentCursor: %s\n",
+		time.Now().Format("2006-01-02 15:04:05 000"),
+		shardId, len(logGroupList.LogGroups),
+		checkpointTracker.GetCurrentCursor())
+	for _, logGroup := range logGroupList.LogGroups {
+		lgoGroupId := logGroup.GetLogGroupId()
+		fmt.Println("log group id: ", lgoGroupId)
+		for i, log := range logGroup.Logs {
+			log_id := logGroup.GetLogId(i)
+			fmt.Printf("log %d has %d keys, and log id: %s\n", i, len(log.Contents), log_id)
+		}
+	}
+	return "", nil
+}

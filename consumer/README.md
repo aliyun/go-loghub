@@ -54,6 +54,7 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |MaxFetchLogGroupCount|数据一次拉取的log group数量|非必填，默认为1000|
 |CursorStartTime|数据点位的时间戳|非必填，CursorPosition为SPECIAL_TIME_CURSOR时需填写|
 |InOrder|shard分裂后是否in order消费|非必填，默认为false，当为true时，分裂shard会在老的read only shard消费完后再继续消费|
+|Logger|自定义日志Logger|非必填，此logger只用于记录消费者自身状态。如果为 nil，会使用默认的logger。若指定了自定义logger，会忽略 AllowLogLevel、LogFileName、LogMaxSize、LogMaxBackups、LogCompass等参数|
 |AllowLogLevel|允许的日志级别|非必填，默认为info，日志级别由低到高为debug, info, warn, error，仅高于此AllowLogLevel的才会被log出来|
 |LogFileName|程序运行日志文件名称|非必填，默认为stdout|
 |IsJsonType|是否为json类型|非必填，默认为logfmt格式，true时为json格式|

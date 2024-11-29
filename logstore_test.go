@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	lz4 "github.com/cloudflare/golz4"
 	"github.com/gogo/protobuf/proto"
+	lz4 "github.com/pierrec/lz4"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -227,6 +227,45 @@ func (s *LogstoreTestSuite) TestPullLogs() {
 
 	_, _, err = s.Logstore.PullLogs(0, cursor, endCursor, 10)
 	s.Nil(err)
+}
+
+func (s *LogstoreTestSuite) TestGetLogByteWithError() {
+	c := &LogContent{
+		Key:   proto.String("error code"),
+		Value: proto.String("InternalServerError"),
+	}
+	l := &Log{
+		Time: proto.Uint32(uint32(time.Now().Unix())),
+		Contents: []*LogContent{
+			c,
+		},
+	}
+	lg := &LogGroup{
+		Topic:  proto.String("demo topic"),
+		Source: proto.String("10.230.201.117"),
+		Logs: []*Log{
+			l,
+		},
+	}
+
+	shards, err := s.Logstore.ListShards()
+	s.True(len(shards) > 0)
+
+	err = s.Logstore.PutLogs(lg)
+	s.Nil(err)
+
+	cursor, err := s.Logstore.GetCursor(0, "begin")
+	s.Nil(err)
+	endCursor, err := s.Logstore.GetCursor(0, "end")
+	s.Nil(err)
+
+	_, _, err = s.Logstore.GetLogsBytes(1000, cursor, "", 10)
+	s.Contains(err.Error(), "ShardNotExist")
+	s.NotNil(err)
+
+	_, _, err = s.Logstore.GetLogsBytes(1000, cursor, endCursor, 10)
+	s.Contains(err.Error(), "ShardNotExist")
+	s.NotNil(err)
 }
 
 func (s *LogstoreTestSuite) TestGetLogs() {
@@ -457,8 +496,9 @@ func (s *LogstoreTestSuite) TestLogStoreWriteErrorMock() {
 	body, _ := proto.Marshal(lg)
 
 	// Compresse body with lz4
-	out := make([]byte, lz4.CompressBound(body))
-	n, _ := lz4.Compress(body, out)
+	var hashTable [1 << 16]int
+	out := make([]byte, lz4.CompressBlockBound(len(body)))
+	n, _ := lz4.CompressBlock(body, out, hashTable[:])
 
 	h := map[string]string{
 		"x-log-compresstype": "lz4",

@@ -16,6 +16,7 @@ const (
 	DataSourceKafka      DataSourceType = "Kafka"
 	DataSourceCMS        DataSourceType = "AliyunCloudMonitor"
 	DataSourceGeneral    DataSourceType = "General"
+	DataSourceS3         DataSourceType = "S3"
 
 	OSSDataFormatTypeLine          OSSDataFormatType = "Line"
 	OSSDataFormatTypeMultiline     OSSDataFormatType = "Multiline"
@@ -190,7 +191,23 @@ type (
 		TimePattern      string            `json:"timePattern"`
 		TimeFormat       string            `json:"timeFormat"`
 		TimeZone         string            `json:"timeZone"`
+		Communication    string            `json:"communication"`
+		NameResolutions  string            `json:"nameResolutions"`
 		AdditionalProps  map[string]string `json:"additionalProps"`
+		VpcId            string            `json:"vpcId"`
+	}
+
+	S3Source struct {
+		DataSource
+		AWSAccessKey       string      `json:"awsAccessKey"`
+		AWSAccessKeySecret string      `json:"awsAccessKeySecret"`
+		AWSRegion          string      `json:"awsRegion"`
+		Bucket             string      `json:"bucket"`
+		Prefix             string      `json:"prefix,omitempty"`
+		Pattern            string      `json:"pattern,omitempty"`
+		CompressionCodec   string      `json:"compressionCodec,omitempty"`
+		Encoding           string      `json:"encoding,omitempty"`
+		Format             interface{} `json:"format,omitempty"`
 	}
 
 	// ingestion JDBC source

@@ -39,8 +39,9 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |参数|含义|详情|
 | --- | --- | --- |
 |Endpoint|sls的endpoint|必填，如cn-hangzhou.sls.aliyuncs.com|
-|AccessKeyId|aliyun的AccessKeyId|必填|
-|AccessKeySecret|aliyun的AccessKeySecret|必填|
+|AccessKeyId|aliyun的AccessKeyId|当 CredentialsProvider 为 nil 时必填|
+|AccessKeySecret|aliyun的AccessKeySecret|当 CredentialsProvider 为 nil 时必填|
+|CredentialsProvider|自定义接口|可选，可自定义CredentialsProvider，来提供动态的 AccessKeyId/AccessKeySecret/StsToken，该接口应当缓存 AK，且必须线程安全|
 |Project|sls的project信息|必填|
 |Logstore|sls的logstore|必填|
 |ConsumerGroupName|消费组名称|必填|
@@ -48,10 +49,12 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |CursorPosition|消费的点位|必填，支持 1.BEGIN_CURSOR: logstore的开始点位 2. END_CURSOR: logstore的最新数据点位 3.SPECIAL_TIME_CURSOR: 自行设置的unix时间戳|
 ||sls的logstore|必填|
 |HeartbeatIntervalInSecond|心跳的时间间隔|非必填，默认时间为20s, sdk会根据心跳时间与服务器确认alive|
+|HeartbeatTimeoutInSecond|心跳的超时间隔|非必填，默认时间为HeartbeatIntervalInSecond的3倍, sdk会根据心跳时间与服务器确认alive，持续心跳失败达到超时时间后后，服务器可重新分配该超时shard|
 |DataFetchIntervalInMs|数据默认拉取的间隔|非必填，默认为200ms|
 |MaxFetchLogGroupCount|数据一次拉取的log group数量|非必填，默认为1000|
 |CursorStartTime|数据点位的时间戳|非必填，CursorPosition为SPECIAL_TIME_CURSOR时需填写|
 |InOrder|shard分裂后是否in order消费|非必填，默认为false，当为true时，分裂shard会在老的read only shard消费完后再继续消费|
+|Logger|自定义日志Logger|非必填，此logger只用于记录消费者自身状态。如果为 nil，会使用默认的logger。若指定了自定义logger，会忽略 AllowLogLevel、LogFileName、LogMaxSize、LogMaxBackups、LogCompass等参数|
 |AllowLogLevel|允许的日志级别|非必填，默认为info，日志级别由低到高为debug, info, warn, error，仅高于此AllowLogLevel的才会被log出来|
 |LogFileName|程序运行日志文件名称|非必填，默认为stdout|
 |IsJsonType|是否为json类型|非必填，默认为logfmt格式，true时为json格式|
@@ -62,6 +65,7 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |SecurityToken|aliyun SecurityToken|非必填，参考https://help.aliyun.com/document_detail/47277.html|
 |AutoCommitDisabled|是否禁用sdk自动提交checkpoint|非必填，默认不会禁用|
 |AutoCommitIntervalInMS|自动提交checkpoint的时间间隔|非必填，单位为MS，默认时间为60s|
+|Query|过滤规则  基于规则消费时必须设置对应规则 如 *| where a = 'xxx'|非必填|
 
 2.**覆写消费逻辑**
 

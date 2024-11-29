@@ -18,7 +18,10 @@ func main() {
 	//When the producer is closed, if the StsTokenShutDown parameter is not set to nil, it will actively call the close method to close the channel.
 	producerConfig.StsTokenShutDown = make(chan struct{})
 	producerConfig.UpdateStsToken = updateStsToken
-	producerInstance := producer.InitProducer(producerConfig)
+	producerInstance, err := producer.NewProducer(producerConfig)
+	if err != nil {
+		panic(err)
+	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Kill, os.Interrupt)
 	producerInstance.Start()

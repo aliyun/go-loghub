@@ -35,7 +35,7 @@ func initConsumerHeatBeat(consumerClient *ConsumerClient, logger log.Logger) *Co
 func (heartbeat *ConsumerHeartBeat) getHeldShards() []int {
 	heartbeat.shardLock.RLock()
 	defer heartbeat.shardLock.RUnlock()
-	return heartbeat.heldShards
+	return append([]int{}, heartbeat.heldShards...)
 }
 
 func (heartbeat *ConsumerHeartBeat) setHeldShards(heldShards []int) {
@@ -44,16 +44,10 @@ func (heartbeat *ConsumerHeartBeat) setHeldShards(heldShards []int) {
 	heartbeat.heldShards = heldShards
 }
 
-func (heartbeat *ConsumerHeartBeat) setHeartShards(heartShards []int) {
-	heartbeat.shardLock.Lock()
-	defer heartbeat.shardLock.Unlock()
-	heartbeat.heartShards = heartShards
-}
-
 func (heartbeat *ConsumerHeartBeat) getHeartShards() []int {
 	heartbeat.shardLock.RLock()
 	defer heartbeat.shardLock.RUnlock()
-	return heartbeat.heartShards
+	return append([]int{}, heartbeat.heartShards...)
 }
 
 func (heartbeat *ConsumerHeartBeat) shutDownHeart() {
@@ -61,13 +55,30 @@ func (heartbeat *ConsumerHeartBeat) shutDownHeart() {
 	heartbeat.shutDownFlag.Store(true)
 }
 
+func (heartbeat *ConsumerHeartBeat) updateHeartShard() {
+	m := make(map[int]bool)
+	heartbeat.shardLock.Lock()
+	defer heartbeat.shardLock.Unlock()
+	for _, shard := range heartbeat.heartShards {
+		m[shard] = true
+	}
+	for _, shard := range heartbeat.heldShards {
+		m[shard] = true
+	}
+
+	uploadShards := make([]int, 0, len(m))
+	for shard := range m {
+		uploadShards = append(uploadShards, shard)
+	}
+	heartbeat.heartShards = uploadShards
+}
+
 func (heartbeat *ConsumerHeartBeat) heartBeatRun() {
 	var lastHeartBeatTime int64
 
 	for !heartbeat.shutDownFlag.Load() {
 		lastHeartBeatTime = time.Now().Unix()
-		uploadShards := append(heartbeat.heartShards, heartbeat.heldShards...)
-		heartbeat.setHeartShards(Set(uploadShards))
+		heartbeat.updateHeartShard()
 		responseShards, err := heartbeat.client.heartBeat(heartbeat.getHeartShards())
 		if err != nil {
 			level.Warn(heartbeat.logger).Log("msg", "send heartbeat error", "error", err)

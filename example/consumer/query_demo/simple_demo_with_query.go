@@ -25,7 +25,8 @@ func main() {
 		ConsumerName:      "",
 		// This options is used for initialization, will be ignored once consumer group is created and each shard has been started to be consumed.
 		// Could be "begin", "end", "specific time format in time stamp", it's log receiving time.
-		CursorPosition: consumerLibrary.BEGIN_CURSOR,
+		CursorPosition:  consumerLibrary.SPECIAL_TIMER_CURSOR,
+		CursorStartTime: 1706077849,
 		// Query is for log pre-handling before return to client, more info refer to https://www.alibabacloud.com/help/zh/sls/user-guide/rule-based-consumption
 		Query: "* | where cast(body_bytes_sent as bigint) > 14000",
 	}
@@ -43,7 +44,12 @@ func main() {
 // Fill in your consumption logic here, and be careful not to change the parameters of the function and the return value,
 // otherwise you will report errors.
 func process(shardId int, logGroupList *sls.LogGroupList, checkpointTracker consumerLibrary.CheckPointTracker) (string, error) {
-	fmt.Println(shardId, logGroupList)
+	for _, logGroup := range logGroupList.LogGroups {
+		for _, log := range logGroup.Logs {
+			fmt.Println("log_content: ", log.Contents)
+		}
+	}
+	fmt.Printf("shardId %v processing works sucess\n", shardId)
 	checkpointTracker.SaveCheckPoint(false)
 	return "", nil
 }

@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/go-kit/kit/log/level"
 )
 
 // GetLogRequest for GetLogsV2
@@ -50,7 +52,10 @@ type PullLogRequest struct {
 	EndCursor        string
 	LogGroupMaxCount int
 	Query            string
-	PullMode         string
+	// Deprecated: PullMode is not used
+	PullMode     string
+	QueryId      string
+	CompressType int
 }
 
 func (plr *PullLogRequest) ToURLParams() url.Values {
@@ -63,12 +68,26 @@ func (plr *PullLogRequest) ToURLParams() url.Values {
 	}
 	if plr.Query != "" {
 		urlVal.Add("query", plr.Query)
+		urlVal.Add("pullMode", "scan_on_stream")
+		if plr.QueryId != "" {
+			urlVal.Add("queryId", plr.QueryId)
+		}
 	}
-	if plr.PullMode != "" {
-		urlVal.Add("pullMode", plr.PullMode)
-	}
-
 	return urlVal
+}
+
+type PullLogMeta struct {
+	NextCursor     string
+	Netflow        int
+	RawSize        int
+	Count          int
+	readLastCursor string // int64 string, eg: "1732154287213232020"
+	// these fields are only present when query is set
+	RawSizeBeforeQuery   int // processed raw size before query
+	Lines                int // result lines after query
+	LinesBeforeQuery     int // processed lines before query
+	FailedLines          int // failed lines during query
+	DataCountBeforeQuery int // processed logGroup count before query
 }
 
 // GetHistogramsResponse defines response from GetHistograms call
@@ -306,3 +325,79 @@ const (
 	CHARGE_BY_FUNCTION    = "ChargeByFunction"
 	CHARGE_BY_DATA_INGEST = "ChargeByDataIngest"
 )
+
+type PostLogStoreLogsRequest struct {
+	LogGroup     *LogGroup
+	HashKey      *string
+	CompressType int
+}
+
+type StoreView struct {
+	Name      string            `json:"name"`
+	StoreType string            `json:"storeType"`
+	Stores    []*StoreViewStore `json:"stores"`
+}
+
+// storeType of storeView
+const (
+	STORE_VIEW_STORE_TYPE_LOGSTORE    = "logstore"
+	STORE_VIEW_STORE_TYPE_METRICSTORE = "metricstore"
+)
+
+type StoreViewStore struct {
+	Project   string `json:"project"`
+	StoreName string `json:"storeName"`
+	Query     string `json:"query,omitempty"`
+}
+
+type GetStoreViewIndexResponse struct {
+	Indexes         []*StoreViewIndex  `json:"indexes"`
+	StoreViewErrors []*StoreViewErrors `json:"storeViewErrors"`
+}
+
+type StoreViewIndex struct {
+	ProjectName string `json:"projectName"`
+	LogStore    string `json:"logstore"`
+	Index       Index  `json:"index"`
+}
+
+type StoreViewErrors struct {
+	ProjectName string `json:"projectName"`
+	LogStore    string `json:"logstore"`
+	Status      string `json:"status"`
+	Message     string `json:"message"`
+}
+
+type ListStoreViewsRequest struct {
+	Offset int `json:"offset"`
+	Size   int `json:"size"`
+}
+
+type ListStoreViewsResponse struct {
+	Total      int      `json:"total"`
+	Count      int      `json:"count"`
+	StoreViews []string `json:"storeviews"`
+}
+
+// If cursor is unknown, returns empty string
+// If pullLogs with non-empty query or consumer with non-empty query, returns empty string
+func (l *LogGroup) GetCursor() string {
+	return l.cursor
+}
+
+func (l *LogGroupList) addCursorIfPossible(readLastCursor string) error {
+	lastCursorInt, err := strconv.ParseInt(readLastCursor, 10, 64)
+	if err != nil {
+		if IsDebugLevelMatched(1) {
+			level.Error(Logger).Log("msg", "decode readLastCursor failed",
+				"cursor", readLastCursor, "err", err)
+		}
+		return err
+	}
+	cursor := lastCursorInt - int64(len(l.LogGroups)) + 1
+	for i := 0; i < len(l.LogGroups); i++ {
+		l.LogGroups[i].cursor = encodeCursor(cursor)
+		cursor++
+	}
+	return nil
+}

@@ -38,6 +38,14 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
    Client = sls.CreateNormalInterfaceV2(Endpoint, credentialsProvider)
    ```
 
+   为了防止出现配置错误，您可以在创建 Client 之后，测试 Client 是否能成功调用 SLS API
+   ```go
+   _, err := Client.ListProject()
+   if err != nil {
+      panic(err)
+   }
+   ```
+
 2. **创建project**
 
    参考 [log_project.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/project/log_project.go)文件
@@ -97,9 +105,7 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
 
 5. **写数据**
 
-   参考[put_log.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/loghub/put_log.go)
-
-   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失。
+   这里展示了用sdk中原生的API接口去发送数据简单示例，但是我们不推荐用API直接向logstore写入数据，推荐使用SDK 中提供的[producer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/producer) 包向logstore 写入数据，自动压缩数据并且提供安全退出机制，不会使数据丢失, 对于MetricStore类型, 使用`PutLogsWithMetricStoreURL`API 发送数据可以提升大基数时间线下查询性能 。
 
    ```go
    logs := []*sls.Log{}
@@ -142,8 +148,6 @@ go get -u github.com/aliyun/aliyun-log-go-sdk
    ```
 
 6.**读数据**
-
-参考[pull_log.go](https://github.com/aliyun/aliyun-log-go-sdk/blob/master/example/loghub/pull_log.go)
 
 这里展示了使用SDK中原生API接口调用去拉取数据的方式，我们不推荐使用这种方式去读取消费logstore中的数据，推荐使用SDK中 [consumer](https://github.com/aliyun/aliyun-log-go-sdk/tree/master/consumer) 消费组去拉取数据，消费组提供自动负载均衡以及失败重试等机制，并且会自动保存拉取断点，再次拉取不会拉取重复数据。
 

@@ -61,7 +61,7 @@ func TestConsumerClient_createConsumerGroup(t *testing.T) {
 	}
 }
 
-func internalGetConsumerGroup(client *sls.Client, project, logstore, groupName string) (sls.ConsumerGroup, error) {
+func internalGetConsumerGroup(client sls.ClientInterface, project, logstore, groupName string) (sls.ConsumerGroup, error) {
 	cgs, err := client.ListConsumerGroup(project, logstore)
 	if err != nil {
 		return sls.ConsumerGroup{}, err

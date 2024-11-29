@@ -11,14 +11,14 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	sls "github.com/aliyun/aliyun-log-go-sdk"
 )
 
 const (
 	aliyunECSRamURL      = "http://100.100.100.200/latest/meta-data/ram/security-credentials/"
 	expirationTimeFormat = "2006-01-02T15:04:05Z"
 )
+
+type UpdateTokenFunction = func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error)
 
 var errNoFile = errors.New("no secret file")
 
@@ -183,7 +183,7 @@ func updateTokenFunction(configFilePath string) (accessKeyID, accessKeySecret, s
 }
 
 // NewTokenUpdateFunc create a token update function for ACK or ECS
-func NewTokenUpdateFunc(role string, configFilePath string) (tokenUpdateFunc sls.UpdateTokenFunction, shutdown chan struct{}) {
+func NewTokenUpdateFunc(role string, configFilePath string) (tokenUpdateFunc UpdateTokenFunction, shutdown chan struct{}) {
 	return func() (accessKeyID string, accessKeySecret string, securityToken string, expireTime time.Time, err error) {
 		return updateTokenFunction(configFilePath)
 	}, make(chan struct{})

@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 )
 
-func crud(client sls.Client, sourceProject string, aggRules *sls.MetricAggRules, testId string) {
+func crud(client *sls.Client, sourceProject string, aggRules *sls.MetricAggRules, testId string) {
 	err := client.CreateMetricAggRules(sourceProject, aggRules)
 	if err != nil {
 		panic(err)
@@ -137,9 +138,9 @@ func main() {
 
 	testId := "metric_agg_rules1"
 	aggRules := sqlConfig(accessKeyID, accessKeySecret, testId)
-	crud(*client, sourceProject, aggRules, testId)
+	crud(client, sourceProject, aggRules, testId)
 
 	testId = "metric_agg_rules2"
 	aggRules = promqlConfig(accessKeyID, accessKeySecret, testId)
-	crud(*client, sourceProject, aggRules, testId)
+	crud(client, sourceProject, aggRules, testId)
 }

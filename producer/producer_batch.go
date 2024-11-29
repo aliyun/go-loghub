@@ -28,6 +28,7 @@ type ProducerBatch struct {
 	shardHash            *string
 	result               *Result
 	maxReservedAttempts  int
+	useMetricStoreUrl    bool
 }
 
 func generatePackId(source string) string {
@@ -76,6 +77,7 @@ func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logs
 		logstore:             logstore,
 		result:               initResult(),
 		maxReservedAttempts:  config.MaxReservedAttempts,
+		useMetricStoreUrl:    config.UseMetricStoreURL,
 	}
 	if shardHash == "" {
 		producerBatch.shardHash = nil
@@ -112,6 +114,12 @@ func (producerBatch *ProducerBatch) getLogGroupCount() int {
 	defer producerBatch.lock.RUnlock()
 	producerBatch.lock.RLock()
 	return len(producerBatch.logGroup.GetLogs())
+}
+
+func (producerBatch *ProducerBatch) isUseMetricStoreUrl() bool {
+	defer producerBatch.lock.RUnlock()
+	producerBatch.lock.RLock()
+	return producerBatch.useMetricStoreUrl
 }
 
 func (producerBatch *ProducerBatch) addLogToLogGroup(log interface{}) {

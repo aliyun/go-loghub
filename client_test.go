@@ -107,3 +107,20 @@ func (s *ClientTestSuite) TestMeteringMode() {
 	s.Require().NoError(err)
 	s.Require().Equal(CHARGE_BY_FUNCTION, res.MeteringMode)
 }
+
+func (s *ClientTestSuite) TestSignv4Acdr() {
+	{
+		client := CreateNormalInterface("https://xx-test-acdr-ut-1-intranet.log.aliyuncs.com", "", "", "")
+		c := client.(*Client)
+		s.Equal(c.Region, "xx-test-acdr-ut-1")
+		s.Equal(c.AuthVersion, AuthV4)
+	}
+
+	{
+		client := CreateNormalInterface("https://cn-hangzhou-intranet.log.aliyuncs.com", "", "", "")
+		c := client.(*Client)
+		s.Equal(c.Region, "")
+		s.EqualValues(c.AuthVersion, "")
+	}
+
+}

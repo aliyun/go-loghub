@@ -56,7 +56,7 @@ func process(shardId int, logGroupList *sls.LogGroupList, checkpointTracker cons
 	return "", nil
 }
 
-func updateCheckpoint(config consumerLibrary.LogHubConfig, client *sls.Client, shardId int) error {
+func updateCheckpoint(config consumerLibrary.LogHubConfig, client sls.ClientInterface, shardId int) error {
 	from := fmt.Sprintf("%d", time.Now().Unix())
 	cursor, err := client.GetCursor(config.Project, config.Logstore, shardId, from)
 	if err != nil {
@@ -67,11 +67,12 @@ func updateCheckpoint(config consumerLibrary.LogHubConfig, client *sls.Client, s
 }
 
 func UpdateConsumerGroupCheckPoint(config consumerLibrary.LogHubConfig) error {
-	client := &sls.Client{
-		Endpoint:        config.Endpoint,
-		AccessKeyID:     config.AccessKeyID,
-		AccessKeySecret: config.AccessKeySecret,
-	}
+	client := sls.CreateNormalInterface(
+		config.Endpoint,
+		config.AccessKeyID,
+		config.AccessKeySecret,
+		"",
+	)
 	shards, err := client.ListShards(config.Project, config.Logstore)
 	if err != nil {
 		return err

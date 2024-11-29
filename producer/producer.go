@@ -29,25 +29,32 @@ type Producer struct {
 	producerLogGroupSize  int64
 }
 
+func NewProducer(producerConfig *ProducerConfig) (*Producer, error) {
+	logger := logConfig(producerConfig)
+	finalProducerConfig := validateProducerConfig(producerConfig, logger)
+
+	client, err := createClient(finalProducerConfig, false, logger)
+	if err != nil {
+		return nil, err
+	}
+	return createProducerInternal(client, finalProducerConfig, logger), nil
+}
+
+// Deprecated: use NewProducer instead.
 func InitProducer(producerConfig *ProducerConfig) *Producer {
 	logger := logConfig(producerConfig)
+	finalProducerConfig := validateProducerConfig(producerConfig, logger)
 
-	client, err := createClient(producerConfig)
-	if err != nil {
-		level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
-	}
+	client, _ := createClient(finalProducerConfig, true, logger)
+	return createProducerInternal(client, finalProducerConfig, logger)
+}
 
-	if producerConfig.HTTPClient != nil {
-		client.SetHTTPClient(producerConfig.HTTPClient)
-	}
-	if producerConfig.UserAgent != "" {
-		client.SetUserAgent(producerConfig.UserAgent)
-	}
-	finalProducerConfig := validateProducerConfig(producerConfig)
+func createProducerInternal(client sls.ClientInterface, finalProducerConfig *ProducerConfig, logger log.Logger) *Producer {
+	configureClient(client, finalProducerConfig)
 	retryQueue := initRetryQueue()
 	errorStatusMap := func() map[int]*string {
 		errorCodeMap := map[int]*string{}
-		for _, v := range producerConfig.NoRetryStatusCodeList {
+		for _, v := range finalProducerConfig.NoRetryStatusCodeList {
 			errorCodeMap[int(v)] = nil
 		}
 		return errorCodeMap
@@ -71,22 +78,41 @@ func InitProducer(producerConfig *ProducerConfig) *Producer {
 	return producer
 }
 
-func createClient(producerConfig *ProducerConfig) (sls.ClientInterface, error) {
+func configureClient(client sls.ClientInterface, producerConfig *ProducerConfig) {
+	if producerConfig.Region != "" {
+		client.SetRegion(producerConfig.Region)
+	}
+	if producerConfig.AuthVersion != "" {
+		client.SetAuthVersion(producerConfig.AuthVersion)
+	}
+	if producerConfig.HTTPClient != nil {
+		client.SetHTTPClient(producerConfig.HTTPClient)
+	}
+	if producerConfig.UserAgent != "" {
+		client.SetUserAgent(producerConfig.UserAgent)
+	}
+}
+
+func createClient(producerConfig *ProducerConfig, allowStsFallback bool, logger log.Logger) (sls.ClientInterface, error) {
 	// use CredentialsProvider
 	if producerConfig.CredentialsProvider != nil {
 		return sls.CreateNormalInterfaceV2(producerConfig.Endpoint, producerConfig.CredentialsProvider), nil
 	}
 	// use UpdateStsTokenFunc
 	if producerConfig.UpdateStsToken != nil && producerConfig.StsTokenShutDown != nil {
-		return sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
+		client, err := sls.CreateTokenAutoUpdateClient(producerConfig.Endpoint, producerConfig.UpdateStsToken, producerConfig.StsTokenShutDown)
+		if err == nil || !allowStsFallback {
+			return client, err
+		}
+		// for backward compatibility
+		level.Warn(logger).Log("msg", "Failed to create ststoken client, use default client without ststoken.", "error", err)
 	}
 	// fallback to default static long-lived AK
 	staticProvider := sls.NewStaticCredentialsProvider(producerConfig.AccessKeyID, producerConfig.AccessKeySecret, "")
 	return sls.CreateNormalInterfaceV2(producerConfig.Endpoint, staticProvider), nil
 }
 
-func validateProducerConfig(producerConfig *ProducerConfig) *ProducerConfig {
-	logger := logConfig(producerConfig)
+func validateProducerConfig(producerConfig *ProducerConfig, logger log.Logger) *ProducerConfig {
 	if producerConfig.MaxReservedAttempts <= 0 {
 		level.Warn(logger).Log("msg", "This MaxReservedAttempts parameter must be greater than zero,program auto correction to default value")
 		producerConfig.MaxReservedAttempts = 11

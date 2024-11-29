@@ -8,8 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/util"
 )
 
 // GlobalForceUsingHTTP if GlobalForceUsingHTTP is true, then all request will use HTTP(ignore LogProject's UsingHTTP flag)
@@ -28,6 +31,7 @@ var MaxCompletedRetryLatency = 5 * time.Minute
 const (
 	Compress_LZ4  = iota // 0
 	Compress_None        // 1
+	Compress_ZSTD        // 2
 	Compress_Max         // max compress type(just for filter invalid compress type)
 )
 
@@ -163,6 +167,11 @@ func (c *Client) SetUserAgent(userAgent string) {
 // SetHTTPClient set a custom http client, all request will send to sls by this client
 func (c *Client) SetHTTPClient(client *http.Client) {
 	c.HTTPClient = client
+}
+
+// SetRetryTimeout set retry timeout
+func (c *Client) SetRetryTimeout(timeout time.Duration) {
+	c.RetryTimeOut = timeout
 }
 
 // SetAuthVersion set signature version that the client used
@@ -394,4 +403,12 @@ func (c *Client) DeleteProject(name string) error {
 // Close the client
 func (c *Client) Close() error {
 	return nil
+}
+
+func (c *Client) setSignV4IfInAcdr(endpoint string) {
+	region, err := util.ParseRegion(endpoint)
+	if err == nil && strings.Contains(region, "-acdr-ut-") {
+		c.AuthVersion = AuthV4
+		c.Region = region
+	}
 }

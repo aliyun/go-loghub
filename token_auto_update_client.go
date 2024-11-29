@@ -146,6 +146,11 @@ func (c *TokenAutoUpdateClient) SetHTTPClient(client *http.Client) {
 	c.logClient.SetHTTPClient(client)
 }
 
+// SetRetryTimeout set retry timeout
+func (c *TokenAutoUpdateClient) SetRetryTimeout(timeout time.Duration) {
+	c.logClient.SetRetryTimeout(timeout)
+}
+
 // SetAuthVersion set auth version that the client used
 func (c *TokenAutoUpdateClient) SetAuthVersion(version AuthVersionType) {
 	c.logClient.SetAuthVersion(version)
@@ -636,16 +641,6 @@ func (c *TokenAutoUpdateClient) DeleteEtlMeta(project string, etlMetaName, etlMe
 	return
 }
 
-func (c *TokenAutoUpdateClient) listEtlMeta(project string, etlMetaName, etlMetaKey, etlMetaTag string, offset, size int) (total int, count int, etlMeta []*EtlMeta, err error) {
-	for i := 0; i < c.maxTryTimes; i++ {
-		total, count, etlMeta, err = c.logClient.listEtlMeta(project, etlMetaName, etlMetaKey, etlMetaTag, offset, size)
-		if !c.processError(err) {
-			return
-		}
-	}
-	return
-}
-
 func (c *TokenAutoUpdateClient) GetEtlMeta(project string, etlMetaName, etlMetaKey string) (etlMeta *EtlMeta, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		etlMeta, err = c.logClient.GetEtlMeta(project, etlMetaName, etlMetaKey)
@@ -736,6 +731,16 @@ func (c *TokenAutoUpdateClient) PutLogs(project, logstore string, lg *LogGroup) 
 	return
 }
 
+func (c *TokenAutoUpdateClient) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.PutLogsWithMetricStoreURL(project, logstore, lg)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		err = c.logClient.PostLogStoreLogs(project, logstore, lg, hashKey)
@@ -811,9 +816,20 @@ func (c *TokenAutoUpdateClient) GetLogsBytes(project, logstore string, shardID i
 	return c.GetLogsBytesV2(plr)
 }
 
+// Deprecated: use GetLogsBytesWithQuery instead
 func (c *TokenAutoUpdateClient) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		out, nextCursor, err = c.logClient.GetLogsBytesV2(plr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, plm *PullLogMeta, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		out, plm, err = c.logClient.GetLogsBytesWithQuery(plr)
 		if !c.processError(err) {
 			return
 		}
@@ -834,9 +850,20 @@ func (c *TokenAutoUpdateClient) PullLogs(project, logstore string, shardID int, 
 	return c.PullLogsV2(plr)
 }
 
+// Deprecated: use PullLogsWithQuery instead
 func (c *TokenAutoUpdateClient) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		gl, nextCursor, err = c.logClient.PullLogsV2(plr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		gl, plm, err = c.logClient.PullLogsWithQuery(plr)
 		if !c.processError(err) {
 			return
 		}
@@ -1967,6 +1994,76 @@ func (c *TokenAutoUpdateClient) GetEventStore(project, name string) (eventStore 
 func (c *TokenAutoUpdateClient) ListEventStore(project string, offset, size int) (eventStores []string, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		eventStores, err = c.logClient.ListEventStore(project, offset, size)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) PostLogStoreLogsV2(project, logstore string, req *PostLogStoreLogsRequest) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.PostLogStoreLogsV2(project, logstore, req)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) CreateStoreView(project string, storeView *StoreView) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.CreateStoreView(project, storeView)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) UpdateStoreView(project string, storeView *StoreView) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.UpdateStoreView(project, storeView)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) DeleteStoreView(project string, storeViewName string) (err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		err = c.logClient.DeleteStoreView(project, storeViewName)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetStoreView(project string, storeViewName string) (storeView *StoreView, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		storeView, err = c.logClient.GetStoreView(project, storeViewName)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) ListStoreViews(project string, req *ListStoreViewsRequest) (resp *ListStoreViewsResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		resp, err = c.logClient.ListStoreViews(project, req)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetStoreViewIndex(project string, storeViewName string) (resp *GetStoreViewIndexResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		resp, err = c.logClient.GetStoreViewIndex(project, storeViewName)
 		if !c.processError(err) {
 			return
 		}

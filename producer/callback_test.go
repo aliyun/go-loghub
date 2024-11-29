@@ -39,7 +39,10 @@ func TestProducer_CallBack(t *testing.T) {
 	producerConfig.Endpoint = ""
 	producerConfig.AccessKeyID = ""
 	producerConfig.AccessKeySecret = ""
-	producerInstance := InitProducer(producerConfig)
+	producerInstance, err := NewProducer(producerConfig)
+	if err != nil {
+		panic(err)
+	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Kill, os.Interrupt)
 	producerInstance.Start()

@@ -17,7 +17,10 @@ func main() {
 	producerConfig.Endpoint = os.Getenv("Endpoint")
 	producerConfig.AccessKeyID = os.Getenv("AccessKeyID")
 	producerConfig.AccessKeySecret = os.Getenv("AccessKeySecret")
-	producerInstance := producer.InitProducer(producerConfig)
+	producerInstance, err := producer.NewProducer(producerConfig)
+	if err != nil {
+		panic(err)
+	}
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Kill, os.Interrupt)
 	producerInstance.Start()

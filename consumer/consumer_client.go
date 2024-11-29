@@ -11,7 +11,7 @@ import (
 
 type ConsumerClient struct {
 	option        LogHubConfig
-	client        *sls.Client
+	client        sls.ClientInterface
 	consumerGroup sls.ConsumerGroup
 	logger        log.Logger
 }
@@ -20,6 +20,9 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 	// Setting configuration defaults
 	if option.HeartbeatIntervalInSecond == 0 {
 		option.HeartbeatIntervalInSecond = 20
+	}
+	if option.HeartbeatTimeoutInSecond == 0 {
+		option.HeartbeatTimeoutInSecond = option.HeartbeatIntervalInSecond * 3
 	}
 	if option.DataFetchIntervalInMs == 0 {
 		option.DataFetchIntervalInMs = 200
@@ -30,19 +33,30 @@ func initConsumerClient(option LogHubConfig, logger log.Logger) *ConsumerClient 
 	if option.AutoCommitIntervalInMS == 0 {
 		option.AutoCommitIntervalInMS = 60 * 1000
 	}
-	client := &sls.Client{
-		Endpoint:        option.Endpoint,
-		AccessKeyID:     option.AccessKeyID,
-		AccessKeySecret: option.AccessKeySecret,
-		SecurityToken:   option.SecurityToken,
-		UserAgent:       option.ConsumerGroupName + "_" + option.ConsumerName,
+	var client sls.ClientInterface
+	if option.CredentialsProvider != nil {
+		client = sls.CreateNormalInterfaceV2(option.Endpoint, option.CredentialsProvider)
+	} else {
+		client = sls.CreateNormalInterface(option.Endpoint,
+			option.AccessKeyID,
+			option.AccessKeySecret,
+			option.SecurityToken)
 	}
+	client.SetUserAgent(option.ConsumerGroupName + "_" + option.ConsumerName)
+
 	if option.HTTPClient != nil {
 		client.SetHTTPClient(option.HTTPClient)
 	}
+	if option.AuthVersion != "" {
+		client.SetAuthVersion(option.AuthVersion)
+	}
+	if option.Region != "" {
+		client.SetRegion(option.Region)
+	}
+
 	consumerGroup := sls.ConsumerGroup{
 		ConsumerGroupName: option.ConsumerGroupName,
-		Timeout:           option.HeartbeatIntervalInSecond * 3,
+		Timeout:           option.HeartbeatTimeoutInSecond,
 		InOrder:           option.InOrder,
 	}
 	consumerClient := &ConsumerClient{
@@ -125,30 +139,20 @@ func (consumer *ConsumerClient) getCursor(shardId int, from string) (string, err
 	return cursor, err
 }
 
-func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.LogGroupList, nextCursor string, rawSize int, err error) {
-	var logBytes []byte
+func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.LogGroupList, plm *sls.PullLogMeta, err error) {
 	plr := &sls.PullLogRequest{
 		Project:          consumer.option.Project,
 		Logstore:         consumer.option.Logstore,
 		ShardID:          shardId,
-		Query:            consumer.option.Query,
 		Cursor:           cursor,
+		Query:            consumer.option.Query,
 		LogGroupMaxCount: consumer.option.MaxFetchLogGroupCount,
-	}
-	if plr.Query != "" {
-		plr.PullMode = "scan_on_stream"
+		CompressType:     consumer.option.CompressType,
 	}
 	for retry := 0; retry < 3; retry++ {
-		logBytes, nextCursor, err = consumer.client.GetLogsBytesV2(plr)
-		if err == nil {
-			rawSize = len(logBytes)
-			gl, err = sls.LogsBytesDecode(logBytes)
-			if err == nil {
-				break
-			}
-		}
+		gl, plm, err = consumer.client.PullLogsWithQuery(plr)
 		if err != nil {
-			slsError, ok := err.(sls.Error)
+			slsError, ok := err.(*sls.Error)
 			if ok {
 				level.Warn(consumer.logger).Log("msg", "shard pull logs failed, occur sls error",
 					"shard", shardId,
@@ -167,6 +171,8 @@ func (consumer *ConsumerClient) pullLogs(shardId int, cursor string) (gl *sls.Lo
 					"tryTimes", retry+1)
 			}
 			time.Sleep(200 * time.Millisecond)
+		} else {
+			return gl, plm, nil
 		}
 	}
 	// If you can't retry the log three times, it will return to empty list and start pulling the log cursor,

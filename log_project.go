@@ -44,6 +44,7 @@ type LogProject struct {
 	CreateTime         string `json:"createTime"`                   // unix time seconds, eg 1524539357
 	LastModifyTime     string `json:"lastModifyTime"`               // unix time seconds, eg 1524539357
 	DataRedundancyType string `json:"dataRedundancyType,omitempty"` // data redundancy type, valid values: ['LRS', 'ZRS']
+	Location           string `json:"location,omitempty"`           // location, eg. cn-beijing-b
 
 	Endpoint           string // IP or hostname of SLS endpoint
 	AccessKeyID        string // Deprecated: use CredentialsProvider instead
@@ -109,9 +110,7 @@ func (p *LogProject) WithToken(token string) (*LogProject, error) {
 // WithRequestTimeout with custom timeout for a request
 func (p *LogProject) WithRequestTimeout(timeout time.Duration) *LogProject {
 	if p.httpClient == defaultHttpClient || p.httpClient == nil {
-		p.httpClient = &http.Client{
-			Timeout: timeout,
-		}
+		p.httpClient = newDefaultHTTPClient(timeout)
 	} else {
 		p.httpClient.Timeout = timeout
 	}
@@ -1151,22 +1150,19 @@ func (p *LogProject) parseEndpoint() {
 		// use direct ip proxy
 		url, _ := url.Parse(fmt.Sprintf("%s%s", scheme, host))
 		if p.httpClient == nil || p.httpClient == defaultHttpClient {
-			p.httpClient = &http.Client{
-				Transport: &http.Transport{
-					Proxy: http.ProxyURL(url),
-				},
-				Timeout: defaultRequestTimeout,
-			}
-		} else {
-			p.httpClient.Transport = &http.Transport{
-				Proxy: http.ProxyURL(url),
-			}
+			p.httpClient = newDefaultHTTPClient(defaultRequestTimeout)
 		}
-
+		setHTTPProxy(p.httpClient, url)
 	}
 	if len(p.Name) == 0 {
 		p.baseURL = fmt.Sprintf("%s%s", scheme, host)
 	} else {
 		p.baseURL = fmt.Sprintf("%s%s.%s", scheme, p.Name, host)
 	}
+}
+
+func setHTTPProxy(client *http.Client, proxy *url.URL) {
+	t := newDefaultTransport()
+	t.Proxy = http.ProxyURL(proxy)
+	client.Transport = t
 }

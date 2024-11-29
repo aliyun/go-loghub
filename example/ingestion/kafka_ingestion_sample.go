@@ -30,6 +30,9 @@ func main() {
 		BootStrapServers: "123.123.123.123:9092", // TODO
 		ValueType:        "json",                 // TODO
 		FromPosition:     "lastest",              // TODO
+		Communication:    "{\"protocol\":\"sasl_ssl\",\"sasl\":{\"password\":\"yyy\",\"mechanism\":\"plain\",\"username\":\"xxx\"}}",
+		NameResolutions:  "{\"localhost\":\"127.0.0.1\"}",
+		VpcId:            "vpc-asdasdas",
 	}
 	source_tmp, _ := json.Marshal(&kafkaSource)
 	var source map[string]interface{}

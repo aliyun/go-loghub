@@ -45,10 +45,16 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 	level.Debug(ioWorker.logger).Log("msg", "ioworker send data to server")
 	beginMs := GetTimeMs(time.Now().UnixNano())
 	var err error
-	if producerBatch.shardHash != nil {
-		err = ioWorker.client.PostLogStoreLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup, producerBatch.getShardHash())
+	if producerBatch.isUseMetricStoreUrl() {
+		// not use compress type now
+		err = ioWorker.client.PutLogsWithMetricStoreURL(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
 	} else {
-		err = ioWorker.client.PutLogs(producerBatch.getProject(), producerBatch.getLogstore(), producerBatch.logGroup)
+		req := &sls.PostLogStoreLogsRequest{
+			LogGroup:     producerBatch.logGroup,
+			HashKey:      producerBatch.getShardHash(),
+			CompressType: ioWorker.producer.producerConfig.CompressType,
+		}
+		err = ioWorker.client.PostLogStoreLogsV2(producerBatch.getProject(), producerBatch.getLogstore(), req)
 	}
 	if err == nil {
 		level.Debug(ioWorker.logger).Log("msg", "sendToServer suecssed,Execute successful callback function")

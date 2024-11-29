@@ -1,8 +1,9 @@
 package main
 
 import (
-	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"time"
+
+	sls "github.com/aliyun/aliyun-log-go-sdk"
 )
 
 func main() {
@@ -12,11 +13,12 @@ func main() {
 	logstore := "002"
 	dashboardName := "dashboardtest"
 	alertName := "test-alert"
-	client := &sls.Client{
-		Endpoint:        "cn-hangzhou.log.aliyuncs.com",
-		AccessKeyID:     accessKeyID,
-		AccessKeySecret: accessKeySecret,
-	}
+	client := sls.CreateNormalInterface(
+		"cn-hangzhou.log.aliyuncs.com",
+		accessKeyID,
+		accessKeySecret,
+		"",
+	)
 	chart := sls.Chart{
 		Title: "chart-1234567",
 		Type:  "table",

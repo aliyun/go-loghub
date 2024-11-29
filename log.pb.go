@@ -28,6 +28,8 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 type LogContent struct {
 	Key                  *string  `protobuf:"bytes,1,req,name=Key" json:"Key,omitempty"`
 	Value                *string  `protobuf:"bytes,2,req,name=Value" json:"Value,omitempty"`
+	_key                 string
+	_value               string
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -146,6 +148,8 @@ func (m *Log) GetTimeNs() uint32 {
 type LogTag struct {
 	Key                  *string  `protobuf:"bytes,1,req,name=Key" json:"Key,omitempty"`
 	Value                *string  `protobuf:"bytes,2,req,name=Value" json:"Value,omitempty"`
+	_key                 string
+	_value               string
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -208,6 +212,7 @@ type LogGroup struct {
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
+	cursor               string    `json:"-"`
 }
 
 func (m *LogGroup) Reset()         { *m = LogGroup{} }
@@ -1062,8 +1067,8 @@ func (m *LogContent) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Key = &s
+			m._key = string(dAtA[iNdEx:postIndex])
+			m.Key = &m._key
 			iNdEx = postIndex
 			hasFields[0] |= uint64(0x00000001)
 		case 2:
@@ -1096,8 +1101,8 @@ func (m *LogContent) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Value = &s
+			m._value = string(dAtA[iNdEx:postIndex])
+			m.Value = &m._value
 			iNdEx = postIndex
 			hasFields[0] |= uint64(0x00000002)
 		default:
@@ -1309,8 +1314,8 @@ func (m *LogTag) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Key = &s
+			m._key = string(dAtA[iNdEx:postIndex])
+			m.Key = &m._key
 			iNdEx = postIndex
 			hasFields[0] |= uint64(0x00000001)
 		case 2:
@@ -1343,8 +1348,8 @@ func (m *LogTag) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Value = &s
+			m._value = string(dAtA[iNdEx:postIndex])
+			m.Value = &m._value
 			iNdEx = postIndex
 			hasFields[0] |= uint64(0x00000002)
 		default:

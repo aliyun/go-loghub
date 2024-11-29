@@ -103,6 +103,20 @@ func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKe
 	return ls.PostLogStoreLogs(lg, hashKey)
 }
 
+func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
+	ls := convertLogstore(c, project, logstore)
+	ls.useMetricStoreURL = true
+	return ls.PutLogs(lg)
+}
+
+func (c *Client) PostLogStoreLogsV2(project, logstore string, req *PostLogStoreLogsRequest) (err error) {
+	ls := convertLogstore(c, project, logstore)
+	if err := ls.SetPutLogCompressType(req.CompressType); err != nil {
+		return err
+	}
+	return ls.PostLogStoreLogs(req.LogGroup, req.HashKey)
+}
+
 // PostRawLogWithCompressType put raw log data to log service, no marshal
 func (c *Client) PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error) {
 	ls := convertLogstore(c, project, logstore)
@@ -202,6 +216,11 @@ func (c *Client) GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor str
 	return ls.GetLogsBytesV2(plr)
 }
 
+func (c *Client) GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, plm *PullLogMeta, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.GetLogsBytesWithQuery(plr)
+}
+
 // PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 // The logGroupMaxCount is the max number of logGroup could be returned.
 // The nextCursor is the next cursor can be used to read logs at next time.
@@ -215,6 +234,11 @@ func (c *Client) PullLogs(project, logstore string, shardID int, cursor, endCurs
 func (c *Client) PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error) {
 	ls := convertLogstore(c, plr.Project, plr.Logstore)
 	return ls.PullLogsV2(plr)
+}
+
+func (c *Client) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error) {
+	ls := convertLogstore(c, plr.Project, plr.Logstore)
+	return ls.PullLogsWithQuery(plr)
 }
 
 // GetHistograms query logs with [from, to) time range

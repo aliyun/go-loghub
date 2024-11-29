@@ -70,6 +70,7 @@ func (retryQueue *RetryQueue) Pop() interface{} {
 	old := retryQueue.batch
 	n := len(old)
 	item := old[n-1]
+	old[n-1] = nil
 	retryQueue.batch = old[0 : n-1]
 	return item
 }

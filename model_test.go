@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -69,4 +70,38 @@ func TestIndex_MarshalJSON(t *testing.T) {
 		})
 	}
 
+}
+
+func TestLogGroupIdentity(t *testing.T) {
+
+	sampleLog := &Log{
+		Time: proto.Uint32(1732774880),
+		Contents: []*LogContent{
+			{
+				Key:   proto.String("test"),
+				Value: proto.String("test"),
+			},
+		},
+	}
+	logGroupList := &LogGroupList{
+		LogGroups: []*LogGroup{
+			{
+				Logs: []*Log{sampleLog},
+			},
+			{
+				Logs: []*Log{sampleLog, sampleLog},
+			},
+			{
+				Logs: []*Log{sampleLog, sampleLog, sampleLog},
+			},
+		},
+	}
+	err := logGroupList.addCursorIfPossible("1729070618428044655")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1NQ==", logGroupList.LogGroups[2].GetCursor())
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1NA==", logGroupList.LogGroups[1].GetCursor())
+	assert.Equal(t, "MTcyOTA3MDYxODQyODA0NDY1Mw==", logGroupList.LogGroups[0].GetCursor())
+	empty := &LogGroup{}
+	assert.Equal(t, empty.GetCursor(), "")
 }

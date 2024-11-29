@@ -3,6 +3,8 @@ package sls
 import (
 	"net/http"
 	"time"
+
+	"github.com/aliyun/aliyun-log-go-sdk/util"
 )
 
 // CreateNormalInterface create a normal client.
@@ -11,10 +13,10 @@ import (
 // If you keep using long-lived AccessKeyID and AccessKeySecret,
 // use the example code below.
 //
-//	  provider := NewStaticCredProvider(accessKeyID, accessKeySecret, securityToken)
+//	  provider := NewStaticCredentialsProvider(accessKeyID, accessKeySecret, securityToken)
 //		client := CreateNormalInterfaceV2(endpoint, provider)
 func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken string) ClientInterface {
-	return &Client{
+	client := &Client{
 		Endpoint:        endpoint,
 		AccessKeyID:     accessKeyID,
 		AccessKeySecret: accessKeySecret,
@@ -26,6 +28,8 @@ func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken
 			securityToken,
 		),
 	}
+	client.setSignV4IfInAcdr(endpoint)
+	return client
 }
 
 // CreateNormalInterfaceV2 create a normal client, with a CredentialsProvider.
@@ -35,13 +39,15 @@ func CreateNormalInterface(endpoint, accessKeyID, accessKeySecret, securityToken
 //
 // See [credentials_provider.go] for more details.
 func CreateNormalInterfaceV2(endpoint string, credentialsProvider CredentialsProvider) ClientInterface {
-	return &Client{
+	client := &Client{
 		Endpoint:            endpoint,
 		credentialsProvider: credentialsProvider,
 	}
+	client.setSignV4IfInAcdr(endpoint)
+	return client
 }
 
-type UpdateTokenFunction = func() (accessKeyID, accessKeySecret, securityToken string, expireTime time.Time, err error)
+type UpdateTokenFunction = util.UpdateTokenFunction
 
 // CreateTokenAutoUpdateClient create a TokenAutoUpdateClient,
 // this client will auto fetch security token and retry when operation is `Unauthorized`
@@ -79,6 +85,8 @@ type ClientInterface interface {
 	SetUserAgent(userAgent string)
 	// SetHTTPClient set a custom http client, all request will send to sls by this client
 	SetHTTPClient(client *http.Client)
+	// SetRetryTimeout set retry timeout, client will retry util retry timeout
+	SetRetryTimeout(timeout time.Duration)
 	// #################### Client Operations #####################
 	// ResetAccessKeyToken reset client's access key token
 	ResetAccessKeyToken(accessKeyID, accessKeySecret, securityToken string)
@@ -162,6 +170,20 @@ type ClientInterface interface {
 	// ListEventStore returns all eventStore names of project p.
 	ListEventStore(project string, offset, size int) ([]string, error)
 
+	// #################### StoreView Operations #####################
+	// CreateStoreView creates a new storeView.
+	CreateStoreView(project string, storeView *StoreView) error
+	// UpdateStoreView updates a storeView.
+	UpdateStoreView(project string, storeView *StoreView) error
+	// DeleteStoreView deletes a storeView.
+	DeleteStoreView(project string, storeViewName string) error
+	// GetStoreView returns storeView.
+	GetStoreView(project string, storeViewName string) (*StoreView, error)
+	// ListStoreViews returns all storeView names of a project.
+	ListStoreViews(project string, req *ListStoreViewsRequest) (*ListStoreViewsResponse, error)
+	// GetStoreViewIndex returns all index config of logstores in the storeView, only support storeType logstore.
+	GetStoreViewIndex(project string, storeViewName string) (*GetStoreViewIndexResponse, error)
+
 	// #################### Logtail Operations #####################
 	// ListMachineGroup returns machine group name list and the total number of machine groups.
 	// The offset starts from 0 and the size is the max number of machine groups could be returned.
@@ -220,7 +242,6 @@ type ClientInterface interface {
 	CreateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	UpdateEtlMeta(project string, etlMeta *EtlMeta) (err error)
 	DeleteEtlMeta(project string, etlMetaName, etlMetaKey string) (err error)
-	listEtlMeta(project string, etlMetaName, etlMetaKey, etlMetaTag string, offset, size int) (total int, count int, etlMeta []*EtlMeta, err error)
 	GetEtlMeta(project string, etlMetaName, etlMetaKey string) (etlMeta *EtlMeta, err error)
 	ListEtlMeta(project string, etlMetaName string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)
 	ListEtlMetaWithTag(project string, etlMetaName, etlMetaTag string, offset, size int) (total int, count int, etlMetaList []*EtlMeta, err error)
@@ -237,12 +258,14 @@ type ClientInterface interface {
 	MergeShards(project, logstore string, shardID int) (shards []*Shard, err error)
 
 	// #################### Log Operations #####################
+	PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error)
 	// PutLogs put logs into logstore.
 	// The callers should transform user logs into LogGroup.
 	PutLogs(project, logstore string, lg *LogGroup) (err error)
 	// PostLogStoreLogs put logs into Shard logstore by hashKey.
 	// The callers should transform user logs into LogGroup.
 	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error)
+	PostLogStoreLogsV2(project, logstore string, req *PostLogStoreLogsRequest) (err error)
 	// PostRawLogWithCompressType put logs into logstore with specific compress type and hashKey.
 	PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error)
 	// PutLogsWithCompressType put logs into logstore with specific compress type.
@@ -262,14 +285,18 @@ type ClientInterface interface {
 	// The nextCursor is the next curosr can be used to read logs at next time.
 	GetLogsBytes(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (out []byte, nextCursor string, err error)
+	// Deprecated: Use GetLogsBytesWithQuery instead.
 	GetLogsBytesV2(plr *PullLogRequest) (out []byte, nextCursor string, err error)
+	GetLogsBytesWithQuery(plr *PullLogRequest) (out []byte, plm *PullLogMeta, err error)
 	// PullLogs gets logs from shard specified by shardId according cursor and endCursor.
 	// The logGroupMaxCount is the max number of logGroup could be returned.
 	// The nextCursor is the next cursor can be used to read logs at next time.
 	// @note if you want to pull logs continuous, set endCursor = ""
 	PullLogs(project, logstore string, shardID int, cursor, endCursor string,
 		logGroupMaxCount int) (gl *LogGroupList, nextCursor string, err error)
+	// Deprecated: Use PullLogsWithQuery instead.
 	PullLogsV2(plr *PullLogRequest) (gl *LogGroupList, nextCursor string, err error)
+	PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error)
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
 	// GetLogs query logs with [from, to) time range

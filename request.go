@@ -17,12 +17,25 @@ import (
 
 // timeout configs
 var (
-	defaultRequestTimeout = 60 * time.Second
-	defaultRetryTimeout   = 90 * time.Second
-	defaultHttpClient     = &http.Client{
-		Timeout: defaultRequestTimeout,
-	}
+	defaultRequestTimeout  = 60 * time.Second
+	defaultRetryTimeout    = 90 * time.Second
+	defaultHttpClient      = newDefaultHTTPClient(defaultRequestTimeout)
+	defaultHTTPIdleTimeout = time.Second * 55
 )
+
+func newDefaultTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.IdleConnTimeout = defaultHTTPIdleTimeout
+	return t
+}
+
+// returns a new http client instance with default config
+func newDefaultHTTPClient(requestTimeout time.Duration) *http.Client {
+	return &http.Client{
+		Transport: newDefaultTransport(),
+		Timeout:   requestTimeout,
+	}
+}
 
 func retryReadErrorCheck(ctx context.Context, err error) (bool, error) {
 	if err == nil {

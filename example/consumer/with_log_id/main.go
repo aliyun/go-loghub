@@ -20,6 +20,7 @@ func main() {
 		ConsumerGroupName: "test-consumer",
 		ConsumerName:      "test-consumer-1",
 		CursorPosition:    consumerLibrary.END_CURSOR,
+		Query:             "", // query must be empty string or not initialized, GetCursor only support empty query
 	}
 
 	worker := consumerLibrary.InitConsumerWorkerWithCheckpointTracker(option, process_with_log_id)
@@ -40,6 +41,7 @@ func process_with_log_id(shardId int, logGroupList *sls.LogGroupList, checkpoint
 	// start consume logs
 	for _, logGroup := range logGroupList.LogGroups {
 		// logGroupCursor is empty string if failed
+		// only support consumer without query
 		logGroupCursor := logGroup.GetCursor()
 		fmt.Println("log group cursor: ", logGroupCursor)
 

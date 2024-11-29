@@ -380,6 +380,7 @@ type ListStoreViewsResponse struct {
 }
 
 // If cursor is unknown, returns empty string
+// If pullLogs with non-empty query or consumer with non-empty query, returns empty string
 func (l *LogGroup) GetCursor() string {
 	return l.cursor
 }

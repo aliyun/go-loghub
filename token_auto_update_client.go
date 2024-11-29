@@ -881,9 +881,29 @@ func (c *TokenAutoUpdateClient) GetHistograms(project, logstore string, topic st
 	return
 }
 
+func (c *TokenAutoUpdateClient) GetHistogramsV2(project, logstore string, ghr *GetHistogramRequest) (h *GetHistogramsResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		h, err = c.logClient.GetHistogramsV2(project, logstore, ghr)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) GetHistogramsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string) (h *GetHistogramsResponse, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		h, err = c.logClient.GetHistogramsToCompleted(project, logstore, topic, from, to, queryExp)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
+func (c *TokenAutoUpdateClient) GetHistogramsToCompletedV2(project, logstore string, ghr *GetHistogramRequest) (h *GetHistogramsResponse, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		h, err = c.logClient.GetHistogramsToCompletedV2(project, logstore, ghr)
 		if !c.processError(err) {
 			return
 		}

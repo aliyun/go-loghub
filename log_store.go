@@ -650,18 +650,22 @@ func (s *LogStore) PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm
 
 // GetHistograms query logs with [from, to) time range
 func (s *LogStore) GetHistograms(topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error) {
+	return s.GetHistogramsV2(&GetHistogramRequest{
+		Topic: topic,
+		From:  from,
+		To:    to,
+		Query: queryExp,
+	})
+}
+
+func (s *LogStore) GetHistogramsV2(ghr *GetHistogramRequest) (*GetHistogramsResponse, error) {
 
 	h := map[string]string{
 		"x-log-bodyrawsize": "0",
 		"Accept":            "application/json",
 	}
 
-	urlVal := url.Values{}
-	urlVal.Add("type", "histogram")
-	urlVal.Add("from", strconv.Itoa(int(from)))
-	urlVal.Add("to", strconv.Itoa(int(to)))
-	urlVal.Add("topic", topic)
-	urlVal.Add("query", queryExp)
+	urlVal := ghr.ToURLParams()
 
 	uri := fmt.Sprintf("/logstores/%s?%s", s.Name, urlVal.Encode())
 	r, err := request(s.project, "GET", uri, h, nil)
@@ -857,6 +861,20 @@ func (s *LogStore) GetHistogramsToCompleted(topic string, from int64, to int64, 
 	var err error
 	f := func() (bool, error) {
 		res, err = s.GetHistograms(topic, from, to, queryExp)
+		if err == nil {
+			return res.IsComplete(), nil
+		}
+		return false, err
+	}
+	s.getToCompleted(f)
+	return res, err
+}
+
+func (s *LogStore) GetHistogramsToCompletedV2(ghr *GetHistogramRequest) (*GetHistogramsResponse, error) {
+	var res *GetHistogramsResponse
+	var err error
+	f := func() (bool, error) {
+		res, err = s.GetHistogramsV2(ghr)
 		if err == nil {
 			return res.IsComplete(), nil
 		}

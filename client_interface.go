@@ -299,6 +299,7 @@ type ClientInterface interface {
 	PullLogsWithQuery(plr *PullLogRequest) (gl *LogGroupList, plm *PullLogMeta, err error)
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
+	GetHistogramsV2(project, logstore string, ghr *GetHistogramRequest) (*GetHistogramsResponse, error)
 	// GetLogs query logs with [from, to) time range
 	GetLogs(project, logstore string, topic string, from int64, to int64, queryExp string,
 		maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)
@@ -316,6 +317,7 @@ type ClientInterface interface {
 
 	// GetHistogramsToCompleted query logs with [from, to) time range to completed
 	GetHistogramsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
+	GetHistogramsToCompletedV2(project, logstore string, ghr *GetHistogramRequest) (*GetHistogramsResponse, error)
 	// GetLogsToCompleted query logs with [from, to) time range to completed
 	GetLogsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string, maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)
 	// GetLogsToCompletedV2 query logs with [from, to) time range to completed

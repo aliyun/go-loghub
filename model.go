@@ -44,6 +44,25 @@ func (glr *GetLogRequest) ToURLParams() url.Values {
 	return urlVal
 }
 
+type GetHistogramRequest struct {
+	Topic    string `json:"topic"`
+	From     int64  `json:"from"`
+	To       int64  `json:"to"`
+	Query    string `json:"query"`
+	Interval int32  `json:"interval"`
+}
+
+func (ghr *GetHistogramRequest) ToURLParams() url.Values {
+	urlVal := url.Values{}
+	urlVal.Add("type", "histogram")
+	urlVal.Add("from", strconv.Itoa(int(ghr.From)))
+	urlVal.Add("to", strconv.Itoa(int(ghr.To)))
+	urlVal.Add("topic", ghr.Topic)
+	urlVal.Add("query", ghr.Query)
+	urlVal.Add("interval", strconv.Itoa(int(ghr.Interval)))
+	return urlVal
+}
+
 type PullLogRequest struct {
 	Project          string
 	Logstore         string

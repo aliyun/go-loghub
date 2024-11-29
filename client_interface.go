@@ -120,6 +120,9 @@ type ClientInterface interface {
 	// #################### Logstore Operations #####################
 	// ListLogStore returns all logstore names of project p.
 	ListLogStore(project string) ([]string, error)
+	// ListLogStoresV2 returns all logstore names of project p with pagination.
+	// @param telemetryType: telemetry type, "None" for all logstore and metricStore, "Metrics" for metricStore
+	ListLogStoreV2(project string, offset, size int, telemetryType string) ([]string, error)
 	// GetLogStore returns logstore according by logstore name.
 	GetLogStore(project string, logstore string) (*LogStore, error)
 	// CreateLogStore creates a new logstore in SLS

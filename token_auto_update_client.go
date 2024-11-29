@@ -261,6 +261,16 @@ func (c *TokenAutoUpdateClient) ListLogStore(project string) (logstoreList []str
 	return
 }
 
+func (c *TokenAutoUpdateClient) ListLogStoreV2(project string, offset, size int, telemetryType string) (logstoreList []string, err error) {
+	for i := 0; i < c.maxTryTimes; i++ {
+		logstoreList, err = c.logClient.ListLogStoreV2(project, offset, size, telemetryType)
+		if !c.processError(err) {
+			return
+		}
+	}
+	return
+}
+
 func (c *TokenAutoUpdateClient) GetLogStore(project string, logstore string) (logstoreRst *LogStore, err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
 		logstoreRst, err = c.logClient.GetLogStore(project, logstore)

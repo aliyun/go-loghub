@@ -34,5 +34,12 @@ func TestPackIdGenerator(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
 
+// BenchmarkPackIdGenerator-12    	 8366719	       120.7 ns/op	      64 B/op	       4 allocs/op
+func BenchmarkPackIdGenerator(b *testing.B) {
+	g := newPackIdGenerator()
+	for i := 0; i < b.N; i++ {
+		g.GeneratePackId("test", "test")
+	}
 }

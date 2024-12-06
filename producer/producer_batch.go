@@ -1,8 +1,6 @@
 package producer
 
 import (
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -36,7 +34,7 @@ func generatePackId(source string) string {
 	return ToMd5(srcData)[0:16]
 }
 
-func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
+func initProducerBatch(packIdGenerator *PackIdGenerator, logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
 	logs := []*sls.Log{}
 
 	if log, ok := logData.(*sls.Log); ok {
@@ -52,17 +50,11 @@ func initProducerBatch(logData interface{}, callBackFunc CallBack, project, logs
 		Source:  proto.String(logSource),
 	}
 	if config.GeneratePackId {
-		config.packLock.Lock()
-		if config.packPrefix == "" {
-			config.packPrefix = strings.ToUpper(generatePackId(logSource)) + "-"
-		}
-		packStr := config.packPrefix + fmt.Sprintf("%X", config.packNumber)
+		packStr := packIdGenerator.GeneratePackId(project, logstore)
 		logGroup.LogTags = append(logGroup.LogTags, &sls.LogTag{
 			Key:   proto.String("__pack_id__"),
 			Value: proto.String(packStr),
 		})
-		config.packNumber++
-		config.packLock.Unlock()
 	}
 	currentTimeMs := GetTimeMs(time.Now().UnixNano())
 	producerBatch := &ProducerBatch{

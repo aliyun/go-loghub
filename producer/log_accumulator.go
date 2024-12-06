@@ -21,6 +21,7 @@ type LogAccumulator struct {
 	logger         log.Logger
 	threadPool     *IoThreadPool
 	producer       *Producer
+	packIdGenrator *PackIdGenerator
 }
 
 func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.Logger, threadPool *IoThreadPool, producer *Producer) *LogAccumulator {
@@ -32,6 +33,7 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 		logger:         logger,
 		threadPool:     threadPool,
 		producer:       producer,
+		packIdGenrator: newPackIdGenerator(),
 	}
 }
 
@@ -96,10 +98,11 @@ func (logAccumulator *LogAccumulator) createNewProducerBatch(logType interface{}
 	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
 
 	if mlog, ok := logType.(*sls.Log); ok {
-		newProducerBatch := initProducerBatch(mlog, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
+
+		newProducerBatch := initProducerBatch(logAccumulator.packIdGenrator, mlog, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
 		logAccumulator.logGroupData[key] = newProducerBatch
 	} else if logList, ok := logType.([]*sls.Log); ok {
-		newProducerBatch := initProducerBatch(logList, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
+		newProducerBatch := initProducerBatch(logAccumulator.packIdGenrator, logList, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
 		logAccumulator.logGroupData[key] = newProducerBatch
 	}
 }

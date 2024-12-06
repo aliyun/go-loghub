@@ -2,7 +2,6 @@ package producer
 
 import (
 	"net/http"
-	"sync"
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
@@ -39,10 +38,6 @@ type ProducerConfig struct {
 	GeneratePackId        bool
 	CredentialsProvider   sls.CredentialsProvider
 	UseMetricStoreURL     bool
-
-	packLock   sync.Mutex
-	packPrefix string
-	packNumber int64
 
 	// Deprecated: use CredentialsProvider and UpdateFuncProviderAdapter instead.
 	//

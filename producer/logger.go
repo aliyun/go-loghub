@@ -4,28 +4,34 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
 	"io"
+	"os"
 )
 
 func logConfig(producerConfig *ProducerConfig) log.Logger {
 	var writer io.Writer
-	if producerConfig.LogFileName == "" {
-		writer = log.NewSyncWriter(os.Stdout)
+
+	if producerConfig.Logger {
+		if producerConfig.LogFileName == "" {
+			writer = log.NewSyncWriter(os.Stdout)
+		} else {
+			if producerConfig.LogMaxSize == 0 {
+				producerConfig.LogMaxSize = 10
+			}
+			if producerConfig.LogMaxBackups == 0 {
+				producerConfig.LogMaxBackups = 10
+			}
+			writer = &lumberjack.Logger{
+				Filename:   producerConfig.LogFileName,
+				MaxSize:    producerConfig.LogMaxSize,
+				MaxBackups: producerConfig.LogMaxBackups,
+				Compress:   producerConfig.LogCompress,
+			}
+		}
 	} else {
-		if producerConfig.LogMaxSize == 0 {
-			producerConfig.LogMaxSize = 10
-		}
-		if producerConfig.LogMaxBackups == 0 {
-			producerConfig.LogMaxBackups = 10
-		}
-		writer = &lumberjack.Logger{
-			Filename:   producerConfig.LogFileName,
-			MaxSize:    producerConfig.LogMaxSize,
-			MaxBackups: producerConfig.LogMaxBackups,
-			Compress:   producerConfig.LogCompress,
-		}
+		writer = NullWriter{}
 	}
+
 	var logger log.Logger
 	if producerConfig.IsJsonType {
 		logger = log.NewJSONLogger(writer)

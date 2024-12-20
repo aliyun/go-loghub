@@ -52,6 +52,7 @@ type LogHubConfig struct {
 	//:param AuthVersion: signature algorithm version, default is sls.AuthV1
 	//:param Region: region of sls endpoint, eg. cn-hangzhou, region must be set if AuthVersion is sls.AuthV4
 	//:param DisableRuntimeMetrics: disable runtime metrics, runtime metrics prints to local log.
+	//::param MaxIoWorkers: max io workers, default is 50
 	Endpoint                  string
 	AccessKeyID               string
 	AccessKeySecret           string
@@ -83,6 +84,7 @@ type LogHubConfig struct {
 	AuthVersion               sls.AuthVersionType
 	Region                    string
 	DisableRuntimeMetrics     bool
+	MaxIoWorkers              int
 }
 
 const (
@@ -98,3 +100,5 @@ const (
 	SHUTTING_DOWN     = "SHUTTING_DOWN"
 	SHUTDOWN_COMPLETE = "SHUTDOWN_COMPLETE"
 )
+
+const defaultMaxIoWorkers = 50

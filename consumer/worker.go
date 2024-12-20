@@ -21,6 +21,7 @@ type ConsumerWorker struct {
 	processor          Processor
 	waitGroup          sync.WaitGroup
 	Logger             log.Logger
+	ioThrottler        throttler
 }
 
 // depreciated: this old logic is to automatically save to memory, and then commit at a fixed time
@@ -57,6 +58,10 @@ func InitConsumerWorkerWithProcessor(option LogHubConfig, processor Processor) *
 	if logger == nil {
 		logger = logConfig(option)
 	}
+	maxIoWorker := defaultMaxIoWorkers
+	if option.MaxIoWorkers > 0 {
+		maxIoWorker = option.MaxIoWorkers
+	}
 
 	consumerClient := initConsumerClient(option, logger)
 	consumerHeatBeat := initConsumerHeatBeat(consumerClient, logger)
@@ -65,8 +70,9 @@ func InitConsumerWorkerWithProcessor(option LogHubConfig, processor Processor) *
 		client:             consumerClient,
 		workerShutDownFlag: atomic.NewBool(false),
 		//shardConsumer:      make(map[int]*ShardConsumerWorker),
-		processor: processor,
-		Logger:    logger,
+		processor:   processor,
+		Logger:      logger,
+		ioThrottler: newSimpleIoThrottler(maxIoWorker),
 	}
 	if err := consumerClient.createConsumerGroup(); err != nil {
 		level.Error(consumerWorker.Logger).Log(
@@ -144,7 +150,12 @@ func (consumerWorker *ConsumerWorker) getShardConsumer(shardId int) *ShardConsum
 	if ok {
 		return consumer.(*ShardConsumerWorker)
 	}
-	consumerIns := newShardConsumerWorker(shardId, consumerWorker.client, consumerWorker.consumerHeatBeat, consumerWorker.processor, consumerWorker.Logger)
+	consumerIns := newShardConsumerWorker(shardId,
+		consumerWorker.client,
+		consumerWorker.consumerHeatBeat,
+		consumerWorker.processor,
+		consumerWorker.Logger,
+		consumerWorker.ioThrottler)
 	consumerWorker.shardConsumer.Store(shardId, consumerIns)
 	return consumerIns
 
@@ -216,4 +227,27 @@ func logConfig(option LogHubConfig) log.Logger {
 	}
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
+}
+
+type throttler interface {
+	Acquire()
+	Release()
+}
+
+type simpleIoThrottler struct {
+	chance       chan struct{}
+	maxIoWorkers int
+}
+
+func newSimpleIoThrottler(maxIoWorkers int) *simpleIoThrottler {
+	return &simpleIoThrottler{
+		chance:       make(chan struct{}, maxIoWorkers),
+		maxIoWorkers: maxIoWorkers,
+	}
+}
+func (t *simpleIoThrottler) Acquire() {
+	t.chance <- struct{}{}
+}
+func (t *simpleIoThrottler) Release() {
+	<-t.chance
 }

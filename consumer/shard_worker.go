@@ -34,9 +34,10 @@ type ShardConsumerWorker struct {
 	shutDownFlag           *atomic.Bool
 	stopped                *atomic.Bool
 	startOnceFlag          sync.Once
+	ioThrottler            throttler
 }
 
-func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger) *ShardConsumerWorker {
+func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger, ioThrottler throttler) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),
@@ -47,6 +48,7 @@ func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consume
 		stopped:                   atomic.NewBool(false),
 		lastCheckpointSaveTime:    time.Now(),
 		monitor:                   newShardMonitor(shardId, time.Minute),
+		ioThrottler:               ioThrottler,
 	}
 	return shardConsumeWorker
 }
@@ -95,6 +97,8 @@ func (consumer *ShardConsumerWorker) getInitCursor() string {
 }
 
 func (c *ShardConsumerWorker) fetchLogs(cursor string) (shouldCallProcess bool, logGroupList *sls.LogGroupList, plm *sls.PullLogMeta) {
+	c.ioThrottler.Acquire()
+	defer c.ioThrottler.Release()
 
 	start := time.Now()
 	logGroupList, plm, err := c.client.pullLogs(c.shardId, cursor)

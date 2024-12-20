@@ -91,16 +91,16 @@ func (c *Client) MergeShards(project, logstore string, shardID int) (shards []*S
 
 // PutLogs put logs into logstore.
 // The callers should transform user logs into LogGroup.
-func (c *Client) PutLogs(project, logstore string, lg *LogGroup) (err error) {
+func (c *Client) PutLogs(project, logstore string, lg *LogGroup, options ...Option) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PutLogs(lg)
+	return ls.PutLogs(lg, options...)
 }
 
 // PostLogStoreLogs put logs into Shard logstore by hashKey.
 // The callers should transform user logs into LogGroup.
-func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error) {
+func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string, options ...Option) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PostLogStoreLogs(lg, hashKey)
+	return ls.PostLogStoreLogs(lg, hashKey, options...)
 }
 
 func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
@@ -114,7 +114,10 @@ func (c *Client) PostLogStoreLogsV2(project, logstore string, req *PostLogStoreL
 	if err := ls.SetPutLogCompressType(req.CompressType); err != nil {
 		return err
 	}
-	return ls.PostLogStoreLogs(req.LogGroup, req.HashKey)
+	if req.Processor == "" {
+		return ls.PostLogStoreLogs(req.LogGroup, req.HashKey)
+	}
+	return ls.PostLogStoreLogs(req.LogGroup, req.HashKey, map[string]string{"processor": req.Processor})
 }
 
 // PostRawLogWithCompressType put raw log data to log service, no marshal

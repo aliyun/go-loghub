@@ -349,6 +349,7 @@ type PostLogStoreLogsRequest struct {
 	LogGroup     *LogGroup
 	HashKey      *string
 	CompressType int
+	Processor    string
 }
 
 type StoreView struct {

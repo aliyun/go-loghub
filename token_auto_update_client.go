@@ -731,9 +731,9 @@ func (c *TokenAutoUpdateClient) MergeShards(project, logstore string, shardID in
 	return
 }
 
-func (c *TokenAutoUpdateClient) PutLogs(project, logstore string, lg *LogGroup) (err error) {
+func (c *TokenAutoUpdateClient) PutLogs(project, logstore string, lg *LogGroup, options ...Option) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		err = c.logClient.PutLogs(project, logstore, lg)
+		err = c.logClient.PutLogs(project, logstore, lg, options...)
 		if !c.processError(err) {
 			return
 		}
@@ -751,9 +751,9 @@ func (c *TokenAutoUpdateClient) PutLogsWithMetricStoreURL(project, logstore stri
 	return
 }
 
-func (c *TokenAutoUpdateClient) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error) {
+func (c *TokenAutoUpdateClient) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string, options ...Option) (err error) {
 	for i := 0; i < c.maxTryTimes; i++ {
-		err = c.logClient.PostLogStoreLogs(project, logstore, lg, hashKey)
+		err = c.logClient.PostLogStoreLogs(project, logstore, lg, hashKey, options...)
 		if !c.processError(err) {
 			return
 		}

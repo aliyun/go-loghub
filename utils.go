@@ -8,6 +8,29 @@ import (
 	"strings"
 )
 
+type Option map[string]string
+type Options []Option
+
+func (options Options) GetParam(key string) string {
+	if len(options) == 0 {
+		return ""
+	}
+	for i := len(options) - 1; i >= 0; i-- {
+		option := options[i]
+		if option == nil {
+			continue
+		}
+		if val, ok := option[key]; ok && val != "" {
+			return val
+		}
+	}
+	return ""
+}
+
+func (options Options) GetProcessor() string {
+	return options.GetParam("processor")
+}
+
 func BoolToInt64(b bool) int64 {
 	if b {
 		return 1

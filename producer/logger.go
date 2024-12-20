@@ -4,8 +4,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
 	"io"
+	"os"
 )
 
 func logConfig(producerConfig *ProducerConfig) log.Logger {
@@ -27,7 +27,9 @@ func logConfig(producerConfig *ProducerConfig) log.Logger {
 		}
 	}
 	var logger log.Logger
-	if producerConfig.IsJsonType {
+	if producerConfig.Logger != nil {
+		logger = producerConfig.Logger
+	} else if producerConfig.IsJsonType {
 		logger = log.NewJSONLogger(writer)
 	} else {
 		logger = log.NewLogfmtLogger(writer)

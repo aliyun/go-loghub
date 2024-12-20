@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strconv"
+	"sync"
 	"time"
 
-	sls "github.com/aliyun/aliyun-log-go-sdk"
-	"github.com/gogo/protobuf/proto"
+	"github.com/aliyun/aliyun-log-go-sdk/producer"
 )
 
 // variables you should fill
@@ -67,57 +68,44 @@ func mockNginxLog() string {
 	return content
 }
 
-func mockLogGroup(lines int, topic string) *sls.LogGroup {
-	logs := []*sls.Log{}
-	for i := 0; i < lines; i++ {
-		log := &sls.Log{
-			Time: proto.Uint32(uint32(time.Now().Unix())),
-			Contents: []*sls.LogContent{
-				&sls.LogContent{
-					Key:   proto.String("content"),
-					Value: proto.String(mockNginxLog()),
-				},
-			},
-		}
-		logs = append(logs, log)
-	}
-	return &sls.LogGroup{
-		Topic: proto.String(topic),
-		Logs:  logs,
-	}
-}
-
 func main() {
-	client := sls.CreateNormalInterface(endpoint, accessKeyId, accessKeySecret, "")
-	option := map[string]string{
-		"processor": processor,
+	config := producer.GetDefaultProducerConfig()
+	config.Endpoint = endpoint
+	config.AccessKeyID = accessKeyId
+	config.AccessKeySecret = accessKeySecret
+	config.GeneratePackId = true
+	config.Processor = processor
+
+	producerInstance, err := producer.NewProducer(config)
+	if err != nil {
+		panic(err)
 	}
+	producerInstance.Start()
 
-	for {
-		err := client.PutLogs(
-			project,
-			logstore,
-			mockLogGroup(10, "PutLogs"),
-			option,
-		)
-		fmt.Println(time.Now(), "PutLogs", err)
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 1000; i++ {
+				log := producer.GenerateLog(
+					uint32(time.Now().Unix()),
+					map[string]string{"content": mockNginxLog()},
+				)
+				err := producerInstance.SendLog(project, logstore, "producer", "", log)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	fmt.Println("Send completion")
 
-		err = client.PostLogStoreLogs(
-			project,
-			logstore,
-			mockLogGroup(10, "PostLogStoreLogs"),
-			proto.String("0a"),
-			option,
-		)
-		fmt.Println(time.Now(), "PostLogStoreLogs", err)
-
-		req := &sls.PostLogStoreLogsRequest{
-			LogGroup:  mockLogGroup(10, "PostLogStoreLogsV2"),
-			Processor: processor,
-		}
-		err = client.PostLogStoreLogsV2(project, logstore, req)
-		fmt.Println(time.Now(), "PostLogStoreLogsV2", err)
-
-		time.Sleep(time.Second)
+	term := make(chan os.Signal)
+	signal.Notify(term, os.Kill, os.Interrupt)
+	if _, ok := <-term; ok {
+		fmt.Println("Get the shutdown signal and start to shut down")
+		producerInstance.Close(60000)
 	}
 }

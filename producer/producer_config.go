@@ -52,7 +52,8 @@ type ProducerConfig struct {
 	AccessKeySecret  string // Deprecated: use CredentialsProvider instead
 	Region           string
 	AuthVersion      sls.AuthVersionType
-	CompressType     int // only work for logstore now
+	CompressType     int    // only work for logstore now
+	Processor        string // ingest processor
 }
 
 func GetDefaultProducerConfig() *ProducerConfig {

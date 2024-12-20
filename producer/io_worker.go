@@ -53,6 +53,7 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 			LogGroup:     producerBatch.logGroup,
 			HashKey:      producerBatch.getShardHash(),
 			CompressType: ioWorker.producer.producerConfig.CompressType,
+			Processor:    ioWorker.producer.producerConfig.Processor,
 		}
 		err = ioWorker.client.PostLogStoreLogsV2(producerBatch.getProject(), producerBatch.getLogstore(), req)
 	}

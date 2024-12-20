@@ -34,10 +34,10 @@ type ShardConsumerWorker struct {
 	shutDownFlag           *atomic.Bool
 	stopped                *atomic.Bool
 	startOnceFlag          sync.Once
-	ioThrottler            throttler
+	ioThrottler            ioThrottler
 }
 
-func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger, ioThrottler throttler) *ShardConsumerWorker {
+func newShardConsumerWorker(shardId int, consumerClient *ConsumerClient, consumerHeartBeat *ConsumerHeartBeat, processor Processor, logger log.Logger, ioThrottler ioThrottler) *ShardConsumerWorker {
 	shardConsumeWorker := &ShardConsumerWorker{
 		processor:                 processor,
 		consumerCheckPointTracker: initConsumerCheckpointTracker(shardId, consumerClient, consumerHeartBeat, logger),

@@ -52,7 +52,7 @@ type LogHubConfig struct {
 	//:param AuthVersion: signature algorithm version, default is sls.AuthV1
 	//:param Region: region of sls endpoint, eg. cn-hangzhou, region must be set if AuthVersion is sls.AuthV4
 	//:param DisableRuntimeMetrics: disable runtime metrics, runtime metrics prints to local log.
-	//::param MaxIoWorkers: max io workers, default is 50
+	//::param MaxIoWorkers: max io workers, default is 50. Smaller io workers will reduce memory usage, but may reduce throughput.
 	Endpoint                  string
 	AccessKeyID               string
 	AccessKeySecret           string

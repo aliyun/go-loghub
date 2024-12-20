@@ -21,7 +21,7 @@ type ConsumerWorker struct {
 	processor          Processor
 	waitGroup          sync.WaitGroup
 	Logger             log.Logger
-	ioThrottler        throttler
+	ioThrottler        ioThrottler
 }
 
 // depreciated: this old logic is to automatically save to memory, and then commit at a fixed time
@@ -229,20 +229,18 @@ func logConfig(option LogHubConfig) log.Logger {
 	return logger
 }
 
-type throttler interface {
+type ioThrottler interface {
 	Acquire()
 	Release()
 }
 
 type simpleIoThrottler struct {
-	chance       chan struct{}
-	maxIoWorkers int
+	chance chan struct{}
 }
 
 func newSimpleIoThrottler(maxIoWorkers int) *simpleIoThrottler {
 	return &simpleIoThrottler{
-		chance:       make(chan struct{}, maxIoWorkers),
-		maxIoWorkers: maxIoWorkers,
+		chance: make(chan struct{}, maxIoWorkers),
 	}
 }
 func (t *simpleIoThrottler) Acquire() {

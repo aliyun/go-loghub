@@ -89,33 +89,13 @@ func mockLogGroup(lines int, topic string) *sls.LogGroup {
 
 func main() {
 	client := sls.CreateNormalInterface(endpoint, accessKeyId, accessKeySecret, "")
-	option := map[string]string{
-		"processor": processor,
-	}
 
 	for {
-		err := client.PutLogs(
-			project,
-			logstore,
-			mockLogGroup(10, "PutLogs"),
-			option,
-		)
-		fmt.Println(time.Now(), "PutLogs", err)
-
-		err = client.PostLogStoreLogs(
-			project,
-			logstore,
-			mockLogGroup(10, "PostLogStoreLogs"),
-			proto.String("0a"),
-			option,
-		)
-		fmt.Println(time.Now(), "PostLogStoreLogs", err)
-
 		req := &sls.PostLogStoreLogsRequest{
 			LogGroup:  mockLogGroup(10, "PostLogStoreLogsV2"),
 			Processor: processor,
 		}
-		err = client.PostLogStoreLogsV2(project, logstore, req)
+		err := client.PostLogStoreLogsV2(project, logstore, req)
 		fmt.Println(time.Now(), "PostLogStoreLogsV2", err)
 
 		time.Sleep(time.Second)

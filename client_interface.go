@@ -264,10 +264,10 @@ type ClientInterface interface {
 	PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error)
 	// PutLogs put logs into logstore.
 	// The callers should transform user logs into LogGroup.
-	PutLogs(project, logstore string, lg *LogGroup, options ...Option) (err error)
+	PutLogs(project, logstore string, lg *LogGroup) (err error)
 	// PostLogStoreLogs put logs into Shard logstore by hashKey.
 	// The callers should transform user logs into LogGroup.
-	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string, options ...Option) (err error)
+	PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error)
 	PostLogStoreLogsV2(project, logstore string, req *PostLogStoreLogsRequest) (err error)
 	// PostRawLogWithCompressType put logs into logstore with specific compress type and hashKey.
 	PostRawLogWithCompressType(project, logstore string, rawLogData []byte, compressType int, hashKey *string) (err error)

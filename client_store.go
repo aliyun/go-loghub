@@ -91,16 +91,16 @@ func (c *Client) MergeShards(project, logstore string, shardID int) (shards []*S
 
 // PutLogs put logs into logstore.
 // The callers should transform user logs into LogGroup.
-func (c *Client) PutLogs(project, logstore string, lg *LogGroup, options ...Option) (err error) {
+func (c *Client) PutLogs(project, logstore string, lg *LogGroup) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PutLogs(lg, options...)
+	return ls.PutLogs(lg)
 }
 
 // PostLogStoreLogs put logs into Shard logstore by hashKey.
 // The callers should transform user logs into LogGroup.
-func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string, options ...Option) (err error) {
+func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PostLogStoreLogs(lg, hashKey, options...)
+	return ls.PostLogStoreLogs(lg, hashKey)
 }
 
 func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {

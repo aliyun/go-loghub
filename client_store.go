@@ -100,7 +100,11 @@ func (c *Client) PutLogs(project, logstore string, lg *LogGroup) (err error) {
 // The callers should transform user logs into LogGroup.
 func (c *Client) PostLogStoreLogs(project, logstore string, lg *LogGroup, hashKey *string) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	return ls.PostLogStoreLogs(lg, hashKey)
+	req := &PostLogStoreLogsRequest{
+		LogGroup: lg,
+		HashKey:  hashKey,
+	}
+	return ls.PostLogStoreLogs(req)
 }
 
 func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGroup) (err error) {
@@ -111,13 +115,7 @@ func (c *Client) PutLogsWithMetricStoreURL(project, logstore string, lg *LogGrou
 
 func (c *Client) PostLogStoreLogsV2(project, logstore string, req *PostLogStoreLogsRequest) (err error) {
 	ls := convertLogstore(c, project, logstore)
-	if err := ls.SetPutLogCompressType(req.CompressType); err != nil {
-		return err
-	}
-	if req.Processor == "" {
-		return ls.PostLogStoreLogs(req.LogGroup, req.HashKey)
-	}
-	return ls.PostLogStoreLogs(req.LogGroup, req.HashKey, map[string]string{"processor": req.Processor})
+	return ls.PostLogStoreLogs(req)
 }
 
 // PostRawLogWithCompressType put raw log data to log service, no marshal

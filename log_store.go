@@ -275,7 +275,7 @@ func (s *LogStore) PostRawLogs(body []byte, hashKey *string) (err error) {
 
 // PutLogs put logs into logstore.
 // The callers should transform user logs into LogGroup.
-func (s *LogStore) PutLogs(lg *LogGroup, options ...Option) (err error) {
+func (s *LogStore) PutLogs(lg *LogGroup) (err error) {
 	if len(lg.Logs) == 0 {
 		// empty log group
 		return nil
@@ -327,18 +327,11 @@ func (s *LogStore) PutLogs(lg *LogGroup, options ...Option) (err error) {
 		}
 		outLen = len(out)
 	}
-
 	var uri string
 	if s.useMetricStoreURL {
 		uri = fmt.Sprintf("/prometheus/%s/%s/api/v1/write", s.project.Name, s.Name)
 	} else {
 		uri = fmt.Sprintf("/logstores/%v", s.Name)
-		processor := Options(options).GetProcessor()
-		if processor != "" {
-			params := url.Values{}
-			params.Set("processor", processor)
-			uri = fmt.Sprintf("%s?%s", uri, params.Encode())
-		}
 	}
 	r, err := request(s.project, "POST", uri, h, out[:outLen])
 	if err != nil {
@@ -358,18 +351,21 @@ func (s *LogStore) PutLogs(lg *LogGroup, options ...Option) (err error) {
 
 // PostLogStoreLogs put logs into Shard logstore by hashKey.
 // The callers should transform user logs into LogGroup.
-func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string, options ...Option) (err error) {
-	if len(lg.Logs) == 0 {
+func (s *LogStore) PostLogStoreLogs(req *PostLogStoreLogsRequest) (err error) {
+	if err = s.SetPutLogCompressType(req.CompressType); err != nil {
+		return err
+	}
+
+	if req.LogGroup == nil || len(req.LogGroup.Logs) == 0 {
 		// empty log group or empty hashkey
 		return nil
 	}
 
-	if hashKey == nil || *hashKey == "" || s.useMetricStoreURL {
-		// empty hash call PutLogs
-		return s.PutLogs(lg, options...)
+	if s.useMetricStoreURL {
+		return s.PutLogs(req.LogGroup)
 	}
 
-	body, err := proto.Marshal(lg)
+	body, err := proto.Marshal(req.LogGroup)
 	if err != nil {
 		return NewClientError(err)
 	}
@@ -416,14 +412,19 @@ func (s *LogStore) PostLogStoreLogs(lg *LogGroup, hashKey *string, options ...Op
 		outLen = len(out)
 	}
 
+	var uri = fmt.Sprintf("/logstores/%s", s.Name)
 	var params = url.Values{}
-	params.Set("key", *hashKey)
-	processor := Options(options).GetProcessor()
-	if processor != "" {
-		params.Set("processor", processor)
+	if req.HashKey != nil && *req.HashKey != "" {
+		params.Set("key", *req.HashKey)
+		uri = fmt.Sprintf("/logstores/%s/shards/route", s.Name)
+	}
+	if req.Processor != "" {
+		params.Set("processor", req.Processor)
+	}
+	if len(params) > 0 {
+		uri = fmt.Sprintf("%s?%s", uri, params.Encode())
 	}
 
-	uri := fmt.Sprintf("/logstores/%v/shards/route?%s", s.Name, params.Encode())
 	r, err := request(s.project, "POST", uri, h, out[:outLen])
 	if err != nil {
 		return NewClientError(err)

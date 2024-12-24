@@ -1,8 +1,8 @@
 package sls
 
 const (
-	version         = "0.6.0"     // SDK version
-	signatureMethod = "hmac-sha1" // Signature method
+	version         = "0.6.0"       // SDK version
+	signatureMethod = "hmac-sha256" // Signature method
 
 	// OffsetNewest stands for the log head offset, i.e. the offset that will be
 	// assigned to the next message that will be produced to the shard.

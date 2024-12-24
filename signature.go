@@ -3,7 +3,7 @@ package sls
 import (
 	"crypto/hmac"
 	"crypto/md5"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"net/url"
@@ -137,8 +137,8 @@ func (s *SignerV1) Sign(method, uri string, headers map[string]string, body []by
 		canoHeaders + "\n" +
 		canoResource
 
-	// Signature = base64(hmac-sha1(UTF8-Encoding-Of(SignString)，AccessKeySecret))
-	mac := hmac.New(sha1.New, []byte(s.accessKeySecret))
+	// Signature = base64(hmac-sha256(UTF8-Encoding-Of(SignString)，AccessKeySecret))
+	mac := hmac.New(sha256.New, []byte(s.accessKeySecret))
 	_, err = mac.Write([]byte(signStr))
 	if err != nil {
 		return err

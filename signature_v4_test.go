@@ -141,13 +141,13 @@ func (s *SignerV4Suite) TestSignV4Case6() {
 func (s *SignerV4Suite) TestSignV1Case1() {
 	headers := map[string]string{
 		"x-log-apiversion":      "0.6.0",
-		"x-log-signaturemethod": "hmac-sha1",
+		"x-log-signaturemethod": "hmac-sha256",
 		"x-log-bodyrawsize":     "0",
 		"Date":                  "Mon, 3 Jan 2010 08:33:47 GMT",
 	}
 	mockAKID := "mockAccessKeyID"
 	mockAKSec := "mockAccessKeySecret"
-	expSign := "Rwm6cTKzoti4HWoe+GKcb6Kv07E="
+	expSign := "hNNf3Nv33R//Gxu++a0anEi7d5xbS5gapaPd/6eIxTk="
 	expAuth := fmt.Sprintf("SLS %s:%s", mockAKID, expSign)
 
 	v1 := SignerV1{accessKeyID: mockAKID, accessKeySecret: mockAKSec}
@@ -176,7 +176,7 @@ func (s *SignerV4Suite) TestSignV1Case2() {
 	}
 	mockAKID := "mockAccessKeyID"
 	mockAKSec := "mockAccessKeySecret"
-	expSign := "87xQWqFaOSewqRIma8kPjGYlXHc="
+	expSign := "GGHiEECbn3P3QaMh2fLMs94z95xDVeQmhULhe54o0S4="
 	expAuth := fmt.Sprintf("SLS %s:%s", mockAKID, expSign)
 	v1 := SignerV1{
 		accessKeyID:     mockAKID,

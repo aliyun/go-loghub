@@ -303,6 +303,7 @@ type ClientInterface interface {
 	// GetHistograms query logs with [from, to) time range
 	GetHistograms(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error)
 	GetHistogramsV2(project, logstore string, ghr *GetHistogramRequest) (*GetHistogramsResponse, error)
+	GetHistogramsV3(project, logstore string, ghr *GetHistogramRequest) (*GetHistogramsResponse, error)
 	// GetLogs query logs with [from, to) time range
 	GetLogs(project, logstore string, topic string, from int64, to int64, queryExp string,
 		maxLineNum int64, offset int64, reverse bool) (*GetLogsResponse, error)

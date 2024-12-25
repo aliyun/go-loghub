@@ -253,6 +253,11 @@ func (c *Client) GetHistogramsV2(project, logstore string, ghr *GetHistogramRequ
 	return ls.GetHistogramsV2(ghr)
 }
 
+func (c *Client) GetHistogramsV3(project, logstore string, ghr *GetHistogramRequest) (*GetHistogramsResponse, error) {
+	ls := convertLogstore(c, project, logstore)
+	return ls.GetHistogramsV3(ghr)
+}
+
 // GetHistogramsToCompleted query logs with [from, to) time range to completed
 func (c *Client) GetHistogramsToCompleted(project, logstore string, topic string, from int64, to int64, queryExp string) (*GetHistogramsResponse, error) {
 	ls := convertLogstore(c, project, logstore)

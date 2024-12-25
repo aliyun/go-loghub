@@ -63,6 +63,10 @@ func (ghr *GetHistogramRequest) ToURLParams() url.Values {
 	return urlVal
 }
 
+func (ghr *GetHistogramRequest) ToJsonBody() ([]byte, error) {
+	return json.Marshal(ghr)
+}
+
 type PullLogRequest struct {
 	Project          string
 	Logstore         string

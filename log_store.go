@@ -716,6 +716,53 @@ func (s *LogStore) GetHistogramsV2(ghr *GetHistogramRequest) (*GetHistogramsResp
 	return &getHistogramsResponse, nil
 }
 
+func (s *LogStore) GetHistogramsV3(ghr *GetHistogramRequest) (*GetHistogramsResponse, error) {
+
+	h := map[string]string{
+		"x-log-bodyrawsize": "0",
+		"Accept":            "application/json",
+		"Content-Type":      "application/json",
+	}
+
+	reqBody, err := ghr.ToJsonBody()
+	if err != nil {
+		return nil, err
+	}
+
+	uri := fmt.Sprintf("/logstores/%s/histograms", s.Name)
+	r, err := request(s.project, "POST", uri, h, reqBody)
+	if err != nil {
+		return nil, NewClientError(err)
+	}
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+	if r.StatusCode != http.StatusOK {
+		err := new(Error)
+		if jErr := json.Unmarshal(body, err); jErr != nil {
+			return nil, NewBadResponseError(string(body), r.Header, r.StatusCode)
+		}
+		return nil, err
+	}
+
+	histograms := []SingleHistogram{}
+	err = json.Unmarshal(body, &histograms)
+	if err != nil {
+		return nil, NewBadResponseError(string(body), r.Header, r.StatusCode)
+	}
+
+	count, err := strconv.ParseInt(r.Header.Get(GetLogsCountHeader), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	getHistogramsResponse := GetHistogramsResponse{
+		Progress:   r.Header[ProgressHeader][0],
+		Count:      count,
+		Histograms: histograms,
+	}
+
+	return &getHistogramsResponse, nil
+}
+
 // GetLogLines query logs with [from, to) time range
 func (s *LogStore) GetLogLines(topic string, from int64, to int64, queryExp string,
 	maxLineNum int64, offset int64, reverse bool) (*GetLogLinesResponse, error) {

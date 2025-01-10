@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
@@ -38,19 +39,23 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 }
 
 func (logAccumulator *LogAccumulator) addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash string, producerBatch *ProducerBatch, log interface{}, callback CallBack) {
+	defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "addOrSendProducerBatch")
 	totalDataCount := producerBatch.getLogGroupCount() + 1
 	if int64(producerBatch.totalDataSize) > logAccumulator.producerConfig.MaxBatchSize && producerBatch.totalDataSize < 5242880 && totalDataCount <= logAccumulator.producerConfig.MaxBatchCount {
 		producerBatch.addLogToLogGroup(log)
 		if callback != nil {
 			producerBatch.addProducerBatchCallBack(callback)
 		}
+		defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "innerSendToServer")
 		logAccumulator.innerSendToServer(key, producerBatch)
 	} else if int64(producerBatch.totalDataSize) <= logAccumulator.producerConfig.MaxBatchSize && totalDataCount <= logAccumulator.producerConfig.MaxBatchCount {
+		defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "addOrSendProducerBatch2")
 		producerBatch.addLogToLogGroup(log)
 		if callback != nil {
 			producerBatch.addProducerBatchCallBack(callback)
 		}
 	} else {
+		defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "innerSendToServer2")
 		logAccumulator.innerSendToServer(key, producerBatch)
 		logAccumulator.createNewProducerBatch(log, callback, key, project, logstore, logTopic, logSource, shardHash)
 	}
@@ -63,7 +68,7 @@ func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, s
 		level.Warn(logAccumulator.logger).Log("msg", "Producer has started and shut down and cannot write to new logs")
 		return errors.New("Producer has started and shut down and cannot write to new logs")
 	}
-
+	defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "addLogToProducerBatch")
 	key := logAccumulator.getKeyString(project, logstore, logTopic, shardHash, logSource)
 	defer logAccumulator.lock.Unlock()
 	logAccumulator.lock.Lock()
@@ -96,7 +101,7 @@ func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, s
 
 func (logAccumulator *LogAccumulator) createNewProducerBatch(logType interface{}, callback CallBack, key, project, logstore, logTopic, logSource, shardHash string) {
 	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
-
+	defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "createNewProducerBatch")
 	if mlog, ok := logType.(*sls.Log); ok {
 
 		newProducerBatch := initProducerBatch(logAccumulator.packIdGenrator, mlog, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
@@ -108,6 +113,7 @@ func (logAccumulator *LogAccumulator) createNewProducerBatch(logType interface{}
 }
 
 func (logAccumulator *LogAccumulator) innerSendToServer(key string, producerBatch *ProducerBatch) {
+	defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "innerSendToServerReal")
 	level.Debug(logAccumulator.logger).Log("msg", "Send producerBatch to IoWorker from logAccumulator")
 	logAccumulator.threadPool.addTask(producerBatch)
 	delete(logAccumulator.logGroupData, key)

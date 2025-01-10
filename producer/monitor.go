@@ -17,6 +17,10 @@ type ProducerMetrics struct {
 
 	waitMemory          internal.TimeHistogram
 	waitMemoryFailCount atomic.Int64
+
+	// 临时采样
+	slowFuncs      map[string]int32
+	superSlowFuncs map[string]int32
 }
 
 type ProducerMonitor struct {
@@ -25,7 +29,10 @@ type ProducerMonitor struct {
 
 func newProducerMonitor() *ProducerMonitor {
 	m := &ProducerMonitor{}
-	m.metrics.Store(&ProducerMetrics{})
+	m.metrics.Store(&ProducerMetrics{
+		slowFuncs:      make(map[string]int32),
+		superSlowFuncs: make(map[string]int32),
+	})
 	return m
 }
 
@@ -60,8 +67,22 @@ func (m *ProducerMonitor) incWaitMemoryFail() {
 func (m *ProducerMonitor) getAndResetMetrics() *ProducerMetrics {
 	// we dont need cmp and swap, only one thread would call m.metrics.Store
 	old := m.metrics.Load().(*ProducerMetrics)
-	m.metrics.Store(&ProducerMetrics{})
+	m.metrics.Store(&ProducerMetrics{
+		slowFuncs:      make(map[string]int32),
+		superSlowFuncs: make(map[string]int32),
+	})
 	return old
+}
+
+func (m *ProducerMonitor) recordIfSlow(begin time.Time, name string) {
+	elapsed := time.Since(begin)
+	if elapsed > 1*time.Millisecond {
+		metrics := m.metrics.Load().(*ProducerMetrics)
+		metrics.slowFuncs[name]++
+		if elapsed > 10*time.Millisecond {
+			metrics.superSlowFuncs[name]++
+		}
+	}
 }
 
 func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.Logger) {
@@ -75,6 +96,17 @@ func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.
 			"onFail", metrics.onFail.String(),
 			"waitMemory", metrics.waitMemory.String(),
 			"waitMemoryFailCount", metrics.waitMemoryFailCount.Load(),
+			"slowFuncs", toString(metrics.slowFuncs),
+			"superSlowFuncs", toString(metrics.superSlowFuncs),
 		)
 	}
+}
+
+func toString(m map[string]int32) string {
+	s := "{"
+	for k, v := range m {
+		s += k + ":" + string(v) + ","
+	}
+	s += "}"
+	return s
 }

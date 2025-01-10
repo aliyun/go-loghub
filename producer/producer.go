@@ -76,9 +76,7 @@ func createProducerInternal(client sls.ClientInterface, finalProducerConfig *Pro
 	producer.ioWorkerWaitGroup = &sync.WaitGroup{}
 	producer.ioThreadPoolWaitGroup = &sync.WaitGroup{}
 	producer.logger = logger
-	if !finalProducerConfig.DisableRuntimeMetrics {
-		producer.monitor = newProducerMonitor()
-	}
+	producer.monitor = newProducerMonitor()
 	return producer
 }
 
@@ -286,7 +284,7 @@ func (producer *Producer) Start() {
 	go producer.mover.run(producer.moverWaitGroup, producer.producerConfig)
 	producer.ioThreadPoolWaitGroup.Add(1)
 	go producer.threadPool.start(producer.ioWorkerWaitGroup, producer.ioThreadPoolWaitGroup)
-	if producer.monitor != nil {
+	if !producer.producerConfig.DisableRuntimeMetrics {
 		go producer.monitor.reportThread(time.Minute, producer.logger)
 	}
 }

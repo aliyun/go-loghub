@@ -27,6 +27,7 @@ type Producer struct {
 	buckets               int
 	logger                log.Logger
 	producerLogGroupSize  int64
+	monitor               *ProducerMonitor
 }
 
 func NewProducer(producerConfig *ProducerConfig) (*Producer, error) {
@@ -75,6 +76,9 @@ func createProducerInternal(client sls.ClientInterface, finalProducerConfig *Pro
 	producer.ioWorkerWaitGroup = &sync.WaitGroup{}
 	producer.ioThreadPoolWaitGroup = &sync.WaitGroup{}
 	producer.logger = logger
+	if !finalProducerConfig.DisableRuntimeMetrics {
+		producer.monitor = newProducerMonitor()
+	}
 	return producer
 }
 
@@ -237,34 +241,43 @@ func (producer *Producer) SendLogListWithCallBack(project, logstore, topic, sour
 
 }
 
+// todo: refactor this
 func (producer *Producer) waitTime() error {
+	if atomic.LoadInt64(&producer.producerLogGroupSize) <= producer.producerConfig.TotalSizeLnBytes {
+		return nil
+	}
 
-	if producer.producerConfig.MaxBlockSec > 0 {
-		for i := 0; i < producer.producerConfig.MaxBlockSec; i++ {
-
-			if atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
-				time.Sleep(time.Second)
-			} else {
-				return nil
-			}
-		}
-		level.Error(producer.logger).Log("msg", "Over producer set maximum blocking time")
-		return errors.New(TimeoutExecption)
-	} else if producer.producerConfig.MaxBlockSec == 0 {
+	// no wait
+	if producer.producerConfig.MaxBlockSec == 0 {
 		if atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
 			level.Error(producer.logger).Log("msg", "Over producer set maximum blocking time")
 			return errors.New(TimeoutExecption)
 		}
-	} else if producer.producerConfig.MaxBlockSec < 0 {
-		for {
-			if atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
-				time.Sleep(time.Second)
-			} else {
-				return nil
-			}
+		return nil
+	}
+
+	defer producer.monitor.recordWaitMemory(time.Now())
+
+	// infinite wait
+	if producer.producerConfig.MaxBlockSec < 0 {
+		for atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
+			time.Sleep(time.Millisecond * 50)
+		}
+		return nil
+	}
+
+	// limited wait
+	for i := 0; i < producer.producerConfig.MaxBlockSec; i++ {
+		if atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
+			time.Sleep(time.Second)
+		} else {
+			return nil
 		}
 	}
-	return nil
+
+	producer.monitor.incWaitMemoryFail()
+	level.Error(producer.logger).Log("msg", "Over producer set maximum blocking time")
+	return errors.New(TimeoutExecption)
 }
 
 func (producer *Producer) Start() {
@@ -273,6 +286,9 @@ func (producer *Producer) Start() {
 	go producer.mover.run(producer.moverWaitGroup, producer.producerConfig)
 	producer.ioThreadPoolWaitGroup.Add(1)
 	go producer.threadPool.start(producer.ioWorkerWaitGroup, producer.ioThreadPoolWaitGroup)
+	if producer.monitor != nil {
+		go producer.monitor.reportThread(time.Minute, producer.logger)
+	}
 }
 
 // Limited closing transfer parameter nil, safe closing transfer timeout time, timeout Ms parameter in milliseconds

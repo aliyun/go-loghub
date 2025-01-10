@@ -28,10 +28,11 @@ type LogStore struct {
 	AutoSplit     bool   `json:"autoSplit"`
 	MaxSplitShard int    `json:"maxSplitShard"`
 
-	AppendMeta    bool   `json:"appendMeta"`
-	TelemetryType string `json:"telemetryType"`
-	HotTTL        int32  `json:"hot_ttl,omitempty"`
-	Mode          string `json:"mode,omitempty"` // "query" or "standard"(default), can't be modified after creation
+	AppendMeta    bool        `json:"appendMeta"`
+	TelemetryType string      `json:"telemetryType"`
+	HotTTL        int32       `json:"hot_ttl,omitempty"`
+	Mode          string      `json:"mode,omitempty"` // "query" or "standard"(default), can't be modified after creation
+	HashConfig    *HashConfig `json:"hash_config,omitempty"`
 
 	CreateTime     uint32 `json:"createTime,omitempty"`
 	LastModifyTime uint32 `json:"lastModifyTime,omitempty"`
@@ -41,6 +42,17 @@ type LogStore struct {
 	EncryptConf        *EncryptConf `json:"encrypt_conf,omitempty"`
 	ProductType        string       `json:"productType,omitempty"`
 	useMetricStoreURL  bool
+}
+
+type HashConfig struct {
+	MaxHashAttempts int         `json:"maxHashAttempts"`
+	Keys            []string    `json:"keys"`
+	ShardGroup      *ShardGroup `json:"shard_group,omitempty"`
+}
+
+type ShardGroup struct {
+	Count int      `json:"count"`
+	Keys  []string `json:"keys"`
 }
 
 // Shard defines shard struct

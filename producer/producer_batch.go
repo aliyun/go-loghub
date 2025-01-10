@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -12,8 +13,6 @@ type ProducerBatch struct {
 	totalDataSize        int64
 	lock                 sync.RWMutex
 	logGroup             *sls.LogGroup
-	logGroupSize         int
-	logGroupCount        int
 	attemptCount         int
 	baseRetryBackoffMs   int64
 	nextRetryMs          int64
@@ -128,4 +127,49 @@ func (producerBacth *ProducerBatch) addProducerBatchCallBack(callBack CallBack) 
 	defer producerBacth.lock.Unlock()
 	producerBacth.lock.Lock()
 	producerBacth.callBackList = append(producerBacth.callBackList, callBack)
+}
+
+func (producerBatch *ProducerBatch) OnSuccess(begin time.Time) {
+	producerBatch.addAttempt(nil, begin)
+	if len(producerBatch.callBackList) > 0 {
+		for _, callBack := range producerBatch.callBackList {
+			callBack.Success(producerBatch.result)
+		}
+	}
+}
+
+func (producerBatch *ProducerBatch) OnFail(err *sls.Error, begin time.Time) {
+	producerBatch.addAttempt(err, begin)
+	if len(producerBatch.callBackList) > 0 {
+		for _, callBack := range producerBatch.callBackList {
+			callBack.Fail(producerBatch.result)
+		}
+	}
+}
+
+func (producerBatch *ProducerBatch) addAttempt(err *sls.Error, begin time.Time) {
+	producerBatch.result.successful = (err == nil)
+	producerBatch.attemptCount += 1
+
+	if producerBatch.attemptCount > producerBatch.maxReservedAttempts {
+		return
+	}
+
+	now := time.Now()
+	if err == nil {
+		attempt := createAttempt(true, "", "", "", now.UnixMilli(), now.Sub(begin).Milliseconds())
+		producerBatch.result.attemptList = append(producerBatch.result.attemptList, attempt)
+		return
+	}
+
+	attempt := createAttempt(false, err.RequestID, err.Code, err.Message, now.UnixMilli(), now.Sub(begin).Milliseconds())
+	producerBatch.result.attemptList = append(producerBatch.result.attemptList, attempt)
+}
+
+func (producerBatch *ProducerBatch) getRetryBackoffIntervalMs() int64 {
+	retryWaitTime := producerBatch.baseRetryBackoffMs * int64(math.Pow(2, float64(producerBatch.attemptCount)-1))
+	if retryWaitTime < producerBatch.maxRetryIntervalInMs {
+		return retryWaitTime
+	}
+	return producerBatch.maxRetryIntervalInMs
 }

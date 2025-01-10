@@ -74,7 +74,9 @@ func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, s
 	logAccumulator.lock.Lock()
 	if mlog, ok := logData.(*sls.Log); ok {
 		if producerBatch, ok := logAccumulator.logGroupData[key]; ok == true {
+			t := time.Now()
 			logSize := int64(GetLogSizeCalculate(mlog))
+			logAccumulator.producer.monitor.recordIfSlow(t, "GetLogListSize1")
 			atomic.AddInt64(&producerBatch.totalDataSize, logSize)
 			atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logSize)
 			logAccumulator.addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash, producerBatch, mlog, callback)
@@ -83,7 +85,9 @@ func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, s
 		}
 	} else if logList, ok := logData.([]*sls.Log); ok {
 		if producerBatch, ok := logAccumulator.logGroupData[key]; ok == true {
+			t := time.Now()
 			logListSize := int64(GetLogListSize(logList))
+			logAccumulator.producer.monitor.recordIfSlow(t, "GetLogListSize2")
 			atomic.AddInt64(&producerBatch.totalDataSize, logListSize)
 			atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logListSize)
 			logAccumulator.addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash, producerBatch, logList, callback)

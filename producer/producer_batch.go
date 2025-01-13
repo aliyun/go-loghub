@@ -85,16 +85,12 @@ func (producerBatch *ProducerBatch) getShardHash() *string {
 	return producerBatch.shardHash
 }
 
-func (producerBatch *ProducerBatch) getLogCount() int {
-	return len(producerBatch.logGroup.GetLogs())
-}
-
 func (producerBatch *ProducerBatch) isUseMetricStoreUrl() bool {
 	return producerBatch.useMetricStoreUrl
 }
 
 func (producerBatch *ProducerBatch) meetSendCondition(producerConfig *ProducerConfig) bool {
-	return producerBatch.totalDataSize >= producerConfig.MaxBatchSize && producerBatch.getLogCount() >= producerConfig.MaxBatchCount
+	return producerBatch.totalDataSize >= producerConfig.MaxBatchSize || len(producerBatch.logGroup.Logs) >= producerConfig.MaxBatchCount
 }
 
 func (producerBatch *ProducerBatch) addLog(log *sls.Log, size int64, callback CallBack) {
@@ -172,18 +168,21 @@ type LogGroupPool interface {
 }
 
 type LogGroupPoolImpl struct {
-	maxIdle int32
+	maxIdle int
+	minIdle int
 	config  *ProducerConfig
 
-	mutex     sync.Mutex
-	idleCh    chan *sls.LogGroup
-	idleCount int32
+	mutex            sync.Mutex
+	idleCh           chan *sls.LogGroup
+	idleCount        int
+	releaseIndicator int
 }
 
-func newLogGroupPool(maxIdle int32, config *ProducerConfig) *LogGroupPoolImpl {
+func newLogGroupPool(minIdle, maxIdle int, config *ProducerConfig) *LogGroupPoolImpl {
 	return &LogGroupPoolImpl{
 		idleCh:  make(chan *sls.LogGroup, maxIdle),
 		maxIdle: maxIdle,
+		minIdle: minIdle,
 		config:  config,
 	}
 }
@@ -209,7 +208,12 @@ func (pool *LogGroupPoolImpl) newLogGroup() *sls.LogGroup {
 func (pool *LogGroupPoolImpl) Release(logGroup *sls.LogGroup) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
+	pool.releaseIndicator++
 	if pool.idleCount >= pool.maxIdle {
+		return
+	}
+	// 10% chance reduce idle count, to make idle count approch minIdle
+	if pool.idleCount >= pool.minIdle && pool.releaseIndicator%10 == 0 {
 		return
 	}
 	logReuse := logGroup.Logs[:0]

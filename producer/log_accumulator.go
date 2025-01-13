@@ -22,6 +22,7 @@ type LogAccumulator struct {
 	threadPool     *IoThreadPool
 	producer       *Producer
 	packIdGenrator *PackIdGenerator
+	logGroupPool   LogGroupPool
 }
 
 func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.Logger, threadPool *IoThreadPool, producer *Producer) *LogAccumulator {
@@ -34,6 +35,7 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 		threadPool:     threadPool,
 		producer:       producer,
 		packIdGenrator: newPackIdGenerator(),
+		logGroupPool:   newLogGroupPool(32, config),
 	}
 }
 
@@ -97,7 +99,7 @@ func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, log
 	}
 
 	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
-	batch := newProducerBatch(logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
+	batch := newProducerBatch(logAccumulator.logGroupPool, logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
 	logAccumulator.logGroupData[key] = batch
 	return batch
 }

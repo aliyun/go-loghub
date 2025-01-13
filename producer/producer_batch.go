@@ -2,11 +2,14 @@ package producer
 
 import (
 	"math"
+	"sync"
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/gogo/protobuf/proto"
 )
+
+var PACK_ID_KEY = "__pack_id__"
 
 type ProducerBatch struct {
 	// read only fields
@@ -19,6 +22,7 @@ type ProducerBatch struct {
 	shardHash            *string
 	maxReservedAttempts  int
 	useMetricStoreUrl    bool
+	logGroupPool         LogGroupPool
 
 	// read only after seal
 	totalDataSize int64
@@ -36,21 +40,20 @@ func generatePackId(source string) string {
 	return ToMd5(srcData)[0:16]
 }
 
-func newProducerBatch(packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
-	logGroup := &sls.LogGroup{
-		Logs:    make([]*sls.Log, 0, config.MaxBatchCount),
-		LogTags: config.LogTags,
-		Topic:   proto.String(logTopic),
-		Source:  proto.String(logSource),
-	}
+func newProducerBatch(pool LogGroupPool, packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
+	logGroup := pool.Get()
+	logGroup.LogTags = append(logGroup.LogTags, config.LogTags...)
+	logGroup.Topic = proto.String(logTopic)
+	logGroup.Source = proto.String(logSource)
+
 	if config.GeneratePackId {
 		packStr := packIdGenerator.GeneratePackId(project, logstore)
 		logGroup.LogTags = append(logGroup.LogTags, &sls.LogTag{
-			Key:   proto.String("__pack_id__"),
+			Key:   &PACK_ID_KEY,
 			Value: proto.String(packStr),
 		})
 	}
-	currentTimeMs := GetTimeMs(time.Now().UnixNano())
+	currentTimeMs := time.Now().UnixMilli()
 	producerBatch := &ProducerBatch{
 		logGroup:             logGroup,
 		attemptCount:         0,
@@ -65,6 +68,7 @@ func newProducerBatch(packIdGenerator *PackIdGenerator, project, logstore, logTo
 		maxReservedAttempts:  config.MaxReservedAttempts,
 		useMetricStoreUrl:    config.UseMetricStoreURL,
 		totalDataSize:        0,
+		logGroupPool:         pool,
 	}
 	if shardHash == "" {
 		producerBatch.shardHash = nil
@@ -121,6 +125,7 @@ func (producerBatch *ProducerBatch) OnSuccess(begin time.Time) {
 			callBack.Success(producerBatch.result)
 		}
 	}
+	producerBatch.Release()
 }
 
 func (producerBatch *ProducerBatch) OnFail(err *sls.Error, begin time.Time) {
@@ -130,6 +135,12 @@ func (producerBatch *ProducerBatch) OnFail(err *sls.Error, begin time.Time) {
 			callBack.Fail(producerBatch.result)
 		}
 	}
+	producerBatch.Release()
+}
+
+func (producerBatch *ProducerBatch) Release() {
+	producerBatch.logGroupPool.Release(producerBatch.logGroup)
+	producerBatch.logGroup = nil
 }
 
 func (producerBatch *ProducerBatch) addAttempt(err *sls.Error, begin time.Time) {
@@ -157,4 +168,65 @@ func (producerBatch *ProducerBatch) getRetryBackoffIntervalMs() int64 {
 		return retryWaitTime
 	}
 	return producerBatch.maxRetryIntervalInMs
+}
+
+type LogGroupPool interface {
+	Get() *sls.LogGroup
+	Release(*sls.LogGroup)
+	Close()
+}
+
+type LogGroupPoolImpl struct {
+	maxIdle int32
+	config  *ProducerConfig
+
+	mutex     sync.Mutex
+	idleCh    chan *sls.LogGroup
+	idleCount int32
+}
+
+func newLogGroupPool(maxIdle int32, config *ProducerConfig) *LogGroupPoolImpl {
+	return &LogGroupPoolImpl{
+		idleCh:  make(chan *sls.LogGroup, maxIdle),
+		maxIdle: maxIdle,
+		config:  config,
+	}
+}
+
+func (pool *LogGroupPoolImpl) Get() *sls.LogGroup {
+	pool.mutex.Lock()
+	if pool.idleCount > 0 {
+		defer pool.mutex.Unlock()
+		pool.idleCount--
+		return <-pool.idleCh
+	}
+	pool.mutex.Unlock()
+	return pool.newLogGroup()
+}
+
+func (pool *LogGroupPoolImpl) newLogGroup() *sls.LogGroup {
+	return &sls.LogGroup{
+		Logs:    make([]*sls.Log, 0, pool.config.MaxBatchCount+4),
+		LogTags: make([]*sls.LogTag, 0, len(pool.config.LogTags)+1),
+	}
+}
+
+func (pool *LogGroupPoolImpl) Release(logGroup *sls.LogGroup) {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+	if pool.idleCount >= pool.maxIdle {
+		return
+	}
+	logReuse := logGroup.Logs[:0]
+	clear(logReuse)
+	logGroup.Reset()
+	logGroup.Logs = logReuse
+	pool.idleCount++
+	pool.idleCh <- logGroup
+}
+
+func (pool *LogGroupPoolImpl) Close() {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+	close(pool.idleCh)
 }

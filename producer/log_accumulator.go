@@ -37,74 +37,69 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 	}
 }
 
-func (logAccumulator *LogAccumulator) addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash string, producerBatch *ProducerBatch, log interface{}, callback CallBack) {
-	totalDataCount := producerBatch.getLogGroupCount() + 1
-	if int64(producerBatch.totalDataSize) > logAccumulator.producerConfig.MaxBatchSize && producerBatch.totalDataSize < 5242880 && totalDataCount <= logAccumulator.producerConfig.MaxBatchCount {
-		producerBatch.addLogToLogGroup(log)
-		if callback != nil {
-			producerBatch.addProducerBatchCallBack(callback)
-		}
-		logAccumulator.innerSendToServer(key, producerBatch)
-	} else if int64(producerBatch.totalDataSize) <= logAccumulator.producerConfig.MaxBatchSize && totalDataCount <= logAccumulator.producerConfig.MaxBatchCount {
-		producerBatch.addLogToLogGroup(log)
-		if callback != nil {
-			producerBatch.addProducerBatchCallBack(callback)
-		}
-	} else {
-		logAccumulator.innerSendToServer(key, producerBatch)
-		logAccumulator.createNewProducerBatch(log, callback, key, project, logstore, logTopic, logSource, shardHash)
-	}
-}
-
-// In this function，Naming with mlog is to avoid conflicts with the introduced kit/log package names.
 func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, shardHash, logTopic, logSource string,
 	logData interface{}, callback CallBack) error {
 	if logAccumulator.shutDownFlag.Load() {
 		level.Warn(logAccumulator.logger).Log("msg", "Producer has started and shut down and cannot write to new logs")
 		return errors.New("Producer has started and shut down and cannot write to new logs")
 	}
-
-	key := logAccumulator.getKeyString(project, logstore, logTopic, shardHash, logSource)
-	defer logAccumulator.lock.Unlock()
-	logAccumulator.lock.Lock()
-	if mlog, ok := logData.(*sls.Log); ok {
-		if producerBatch, ok := logAccumulator.logGroupData[key]; ok == true {
-			logSize := int64(GetLogSizeCalculate(mlog))
-			atomic.AddInt64(&producerBatch.totalDataSize, logSize)
-			atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logSize)
-			logAccumulator.addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash, producerBatch, mlog, callback)
-		} else {
-			logAccumulator.createNewProducerBatch(mlog, callback, key, project, logstore, logTopic, logSource, shardHash)
-		}
-	} else if logList, ok := logData.([]*sls.Log); ok {
-		if producerBatch, ok := logAccumulator.logGroupData[key]; ok == true {
-			logListSize := int64(GetLogListSize(logList))
-			atomic.AddInt64(&producerBatch.totalDataSize, logListSize)
-			atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logListSize)
-			logAccumulator.addOrSendProducerBatch(key, project, logstore, logTopic, logSource, shardHash, producerBatch, logList, callback)
-
-		} else {
-			logAccumulator.createNewProducerBatch(logList, callback, key, project, logstore, logTopic, logSource, shardHash)
-		}
-	} else {
-		level.Error(logAccumulator.logger).Log("msg", "Invalid logType")
-		return errors.New("Invalid logType")
+	if log, ok := logData.(*sls.Log); ok {
+		logAccumulator.addLog(project, logstore, shardHash, logTopic, logSource, log, callback)
+		return nil
 	}
-	return nil
-
+	if logList, ok := logData.([]*sls.Log); ok {
+		logAccumulator.addLogList(project, logstore, shardHash, logTopic, logSource, logList, callback)
+		return nil
+	}
+	level.Error(logAccumulator.logger).Log("msg", "Invalid logType")
+	return errors.New("invalid logType")
 }
 
-func (logAccumulator *LogAccumulator) createNewProducerBatch(logType interface{}, callback CallBack, key, project, logstore, logTopic, logSource, shardHash string) {
-	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
+func (logAccumulator *LogAccumulator) addLog(project, logstore, shardHash, logTopic, logSource string,
+	log *sls.Log, callback CallBack) {
+	key := logAccumulator.getKeyString(project, logstore, logTopic, shardHash, logSource)
+	logSize := int64(GetLogSizeCalculate(log))
 
-	if mlog, ok := logType.(*sls.Log); ok {
+	atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logSize)
 
-		newProducerBatch := initProducerBatch(logAccumulator.packIdGenrator, mlog, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
-		logAccumulator.logGroupData[key] = newProducerBatch
-	} else if logList, ok := logType.([]*sls.Log); ok {
-		newProducerBatch := initProducerBatch(logAccumulator.packIdGenrator, logList, callback, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
-		logAccumulator.logGroupData[key] = newProducerBatch
+	logAccumulator.lock.Lock()
+	defer logAccumulator.lock.Unlock()
+
+	producerBatch := logAccumulator.getOrCreateProducerBatch(key, project, logstore, logTopic, logSource, shardHash)
+	producerBatch.addLog(log, logSize, callback)
+
+	if producerBatch.meetSendCondition(logAccumulator.producerConfig) {
+		logAccumulator.innerSendToServer(key, producerBatch)
 	}
+}
+
+func (logAccumulator *LogAccumulator) addLogList(project, logstore, shardHash, logTopic, logSource string,
+	logList []*sls.Log, callback CallBack) {
+	key := logAccumulator.getKeyString(project, logstore, logTopic, shardHash, logSource)
+	logListSize := int64(GetLogListSize(logList))
+
+	atomic.AddInt64(&logAccumulator.producer.producerLogGroupSize, logListSize)
+
+	logAccumulator.lock.Lock()
+	defer logAccumulator.lock.Unlock()
+
+	producerBatch := logAccumulator.getOrCreateProducerBatch(key, project, logstore, logTopic, logSource, shardHash)
+	producerBatch.addLogList(logList, logListSize, callback)
+
+	if producerBatch.meetSendCondition(logAccumulator.producerConfig) {
+		logAccumulator.innerSendToServer(key, producerBatch)
+	}
+}
+
+func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, logstore, logTopic, logSource, shardHash string) *ProducerBatch {
+	if producerBatch, ok := logAccumulator.logGroupData[key]; ok {
+		return producerBatch
+	}
+
+	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
+	batch := newProducerBatch(logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
+	logAccumulator.logGroupData[key] = batch
+	return batch
 }
 
 func (logAccumulator *LogAccumulator) innerSendToServer(key string, producerBatch *ProducerBatch) {

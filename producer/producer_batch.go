@@ -2,7 +2,6 @@ package producer
 
 import (
 	"math"
-	"sync"
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
@@ -10,22 +9,26 @@ import (
 )
 
 type ProducerBatch struct {
-	totalDataSize        int64
-	lock                 sync.RWMutex
-	logGroup             *sls.LogGroup
-	attemptCount         int
-	baseRetryBackoffMs   int64
-	nextRetryMs          int64
+	// read only fields
 	maxRetryIntervalInMs int64
-	callBackList         []CallBack
-	createTimeMs         int64
+	baseRetryBackoffMs   int64
 	maxRetryTimes        int
+	createTimeMs         int64
 	project              string
 	logstore             string
 	shardHash            *string
-	result               *Result
 	maxReservedAttempts  int
 	useMetricStoreUrl    bool
+
+	// read only after seal
+	totalDataSize int64
+	logGroup      *sls.LogGroup
+	callBackList  []CallBack
+
+	// transient fields, but rw by at most one thread
+	attemptCount int
+	nextRetryMs  int64
+	result       *Result
 }
 
 func generatePackId(source string) string {
@@ -33,17 +36,9 @@ func generatePackId(source string) string {
 	return ToMd5(srcData)[0:16]
 }
 
-func initProducerBatch(packIdGenerator *PackIdGenerator, logData interface{}, callBackFunc CallBack, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
-	logs := []*sls.Log{}
-
-	if log, ok := logData.(*sls.Log); ok {
-		logs = append(logs, log)
-	} else if logList, ok := logData.([]*sls.Log); ok {
-		logs = append(logs, logList...)
-	}
-
+func newProducerBatch(packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
 	logGroup := &sls.LogGroup{
-		Logs:    logs,
+		Logs:    make([]*sls.Log, 0, config.MaxBatchCount),
 		LogTags: config.LogTags,
 		Topic:   proto.String(logTopic),
 		Source:  proto.String(logSource),
@@ -69,64 +64,54 @@ func initProducerBatch(packIdGenerator *PackIdGenerator, logData interface{}, ca
 		result:               initResult(),
 		maxReservedAttempts:  config.MaxReservedAttempts,
 		useMetricStoreUrl:    config.UseMetricStoreURL,
+		totalDataSize:        0,
 	}
 	if shardHash == "" {
 		producerBatch.shardHash = nil
 	} else {
 		producerBatch.shardHash = &shardHash
 	}
-	producerBatch.totalDataSize = int64(producerBatch.logGroup.Size())
-
-	if callBackFunc != nil {
-		producerBatch.callBackList = append(producerBatch.callBackList, callBackFunc)
-	}
 	return producerBatch
 }
 
 func (producerBatch *ProducerBatch) getProject() string {
-	defer producerBatch.lock.RUnlock()
-	producerBatch.lock.RLock()
 	return producerBatch.project
 }
 
 func (producerBatch *ProducerBatch) getLogstore() string {
-	defer producerBatch.lock.RUnlock()
-	producerBatch.lock.RLock()
 	return producerBatch.logstore
 }
 
 func (producerBatch *ProducerBatch) getShardHash() *string {
-	defer producerBatch.lock.RUnlock()
-	producerBatch.lock.RLock()
 	return producerBatch.shardHash
 }
 
-func (producerBatch *ProducerBatch) getLogGroupCount() int {
-	defer producerBatch.lock.RUnlock()
-	producerBatch.lock.RLock()
+func (producerBatch *ProducerBatch) getLogCount() int {
 	return len(producerBatch.logGroup.GetLogs())
 }
 
 func (producerBatch *ProducerBatch) isUseMetricStoreUrl() bool {
-	defer producerBatch.lock.RUnlock()
-	producerBatch.lock.RLock()
 	return producerBatch.useMetricStoreUrl
 }
 
-func (producerBatch *ProducerBatch) addLogToLogGroup(log interface{}) {
-	defer producerBatch.lock.Unlock()
-	producerBatch.lock.Lock()
-	if mlog, ok := log.(*sls.Log); ok {
-		producerBatch.logGroup.Logs = append(producerBatch.logGroup.Logs, mlog)
-	} else if logList, ok := log.([]*sls.Log); ok {
-		producerBatch.logGroup.Logs = append(producerBatch.logGroup.Logs, logList...)
+func (producerBatch *ProducerBatch) meetSendCondition(producerConfig *ProducerConfig) bool {
+	return producerBatch.totalDataSize >= producerConfig.MaxBatchSize && producerBatch.getLogCount() >= producerConfig.MaxBatchCount
+}
+
+func (producerBatch *ProducerBatch) addLog(log *sls.Log, size int64, callback CallBack) {
+	producerBatch.logGroup.Logs = append(producerBatch.logGroup.Logs, log)
+	producerBatch.totalDataSize += size
+	if callback != nil {
+		producerBatch.callBackList = append(producerBatch.callBackList, callback)
 	}
 }
 
-func (producerBacth *ProducerBatch) addProducerBatchCallBack(callBack CallBack) {
-	defer producerBacth.lock.Unlock()
-	producerBacth.lock.Lock()
-	producerBacth.callBackList = append(producerBacth.callBackList, callBack)
+func (producerBatch *ProducerBatch) addLogList(logList []*sls.Log, size int64, callback CallBack) {
+	producerBatch.logGroup.Logs = append(producerBatch.logGroup.Logs, logList...)
+	producerBatch.totalDataSize += size
+	if callback != nil {
+		producerBatch.callBackList = append(producerBatch.callBackList, callback)
+	}
 }
 
 func (producerBatch *ProducerBatch) OnSuccess(begin time.Time) {

@@ -12,7 +12,7 @@ import (
 
 type IoThreadPool struct {
 	threadPoolShutDownFlag *atomic.Bool
-	queue                  *list.List
+	queue                  *list.List // todo: super slow
 	lock                   sync.RWMutex
 	ioworker               *IoWorker
 	logger                 log.Logger

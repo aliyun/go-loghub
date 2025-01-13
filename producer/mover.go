@@ -31,61 +31,65 @@ func initMover(logAccumulator *LogAccumulator, retryQueue *RetryQueue, ioWorker 
 
 }
 
-// todo: refactor this
-func (mover *Mover) sendToServer(key string, batch *ProducerBatch, config *ProducerConfig) {
-	if value, ok := mover.logAccumulator.logGroupData[key]; !ok {
-		return
-	} else if time.Now().UnixMilli()-value.createTimeMs < config.LingerMs {
-		return
-	}
-	mover.threadPool.addTask(batch)
-	mover.logAccumulator.logGroupData[key] = nil
-}
-
 func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) {
 	defer moverWaitGroup.Done()
+	defer mover.sendRemaining()
+
 	for !mover.moverShutDownFlag.Load() {
 		sleepMs := config.LingerMs
-		hasData := false
 		nowTimeMs := time.Now().UnixMilli()
+		toSendBatches := make([]*ProducerBatch, 0)
+
 		mover.logAccumulator.lock.Lock()
 		for key, batch := range mover.logAccumulator.logGroupData {
 			if batch == nil {
 				continue
 			}
-			hasData = true
 			timeInterval := batch.createTimeMs + config.LingerMs - nowTimeMs
 			if timeInterval <= 0 {
-				level.Debug(mover.logger).Log("msg", "mover groutine execute sent producerBatch to IoWorker")
-				mover.sendToServer(key, batch, config)
-			} else {
-				if sleepMs > timeInterval {
-					sleepMs = timeInterval
-				}
+				toSendBatches = append(toSendBatches, batch)
+				mover.logAccumulator.logGroupData[key] = nil
+			} else if sleepMs > timeInterval {
+				sleepMs = timeInterval
 			}
 		}
 		mover.logAccumulator.lock.Unlock()
 
-		if !hasData {
-			level.Debug(mover.logger).Log("msg", "No data time in map waiting for user configured RemainMs parameter values")
-			sleepMs = config.LingerMs
+		for _, batch := range toSendBatches {
+			mover.threadPool.addTask(batch)
 		}
 
-		retryProducerBatchList := mover.retryQueue.getRetryBatch(mover.moverShutDownFlag.Load())
-		if retryProducerBatchList == nil {
-			// If there is nothing to send in the retry queue, just wait for the minimum time that was given to me last time.
-			time.Sleep(time.Duration(sleepMs) * time.Millisecond)
+		retryBatches := mover.retryQueue.getRetryBatch(mover.moverShutDownFlag.Load())
+		if len(retryBatches) > 0 {
+			for _, batch := range retryBatches {
+				mover.threadPool.addTask(batch)
+			}
+			time.Sleep(time.Millisecond)
 		} else {
-			count := len(retryProducerBatchList)
-			for i := 0; i < count; i++ {
-				mover.threadPool.addTask(retryProducerBatchList[i])
+			time.Sleep(time.Duration(sleepMs) * time.Millisecond)
+		}
+
+		mover.clearEmptyKeys()
+	}
+
+}
+
+func (mover *Mover) clearEmptyKeys() {
+	mover.logAccumulator.lock.Lock()
+	if len(mover.logAccumulator.logGroupData) > 1000 {
+		for key, batch := range mover.logAccumulator.logGroupData {
+			if batch == nil {
+				delete(mover.logAccumulator.logGroupData, key)
 			}
 		}
-
 	}
+	mover.logAccumulator.lock.Unlock()
+}
+
+func (mover *Mover) sendRemaining() {
 	mover.logAccumulator.lock.Lock()
 	for _, batch := range mover.logAccumulator.logGroupData {
-		if batch != nil {
+		if batch != nil && batch.totalDataSize > 0 {
 			mover.threadPool.addTask(batch)
 		}
 	}
@@ -93,9 +97,9 @@ func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) 
 	mover.logAccumulator.lock.Unlock()
 
 	producerBatchList := mover.retryQueue.getRetryBatch(mover.moverShutDownFlag.Load())
-	count := len(producerBatchList)
-	for i := 0; i < count; i++ {
-		mover.threadPool.addTask(producerBatchList[i])
+	for _, batch := range producerBatchList {
+		mover.threadPool.addTask(batch)
 	}
-	level.Info(mover.logger).Log("msg", "mover thread closure complete")
+
+	level.Info(mover.logger).Log("msg", "mover thread send remaining complete")
 }

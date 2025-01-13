@@ -55,3 +55,8 @@ func newLogStorePackIdGenerator(id int32) *LogStorePackIdGenerator {
 		prefix:     strings.ToUpper(generatePackId(hash)) + "-",
 	}
 }
+
+func generatePackId(source string) string {
+	srcData := source + time.Now().String()
+	return ToMd5(srcData)[0:16]
+}

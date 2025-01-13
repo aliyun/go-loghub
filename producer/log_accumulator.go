@@ -23,6 +23,7 @@ type LogAccumulator struct {
 	producer       *Producer
 	packIdGenrator *PackIdGenerator
 	logGroupPool   LogGroupPool
+	debugLogger    log.Logger
 }
 
 func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.Logger, threadPool *IoThreadPool, producer *Producer) *LogAccumulator {
@@ -36,6 +37,7 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 		producer:       producer,
 		packIdGenrator: newPackIdGenerator(),
 		logGroupPool:   newLogGroupPool(32, config),
+		debugLogger:    level.Error(logger),
 	}
 }
 
@@ -98,20 +100,21 @@ func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, log
 		return producerBatch
 	}
 
-	level.Debug(logAccumulator.logger).Log("msg", "Create a new ProducerBatch")
+	logAccumulator.debugLogger.Log("msg", "Create a new ProducerBatch")
 	batch := newProducerBatch(logAccumulator.logGroupPool, logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
 	logAccumulator.logGroupData[key] = batch
 	return batch
 }
 
 func (logAccumulator *LogAccumulator) innerSendToServer(key string, producerBatch *ProducerBatch) {
-	level.Debug(logAccumulator.logger).Log("msg", "Send producerBatch to IoWorker from logAccumulator")
+	logAccumulator.debugLogger.Log("msg", "Send producerBatch to IoWorker from logAccumulator")
 	logAccumulator.threadPool.addTask(producerBatch)
 	logAccumulator.logGroupData[key] = nil
 }
 
 func (logAccumulator *LogAccumulator) getKeyString(project, logstore, logTopic, shardHash, logSource string) string {
 	var key strings.Builder
+	key.Grow(len(project) + len(logstore) + len(logTopic) + len(shardHash) + len(logSource) + len(Delimiter)*4)
 	key.WriteString(project)
 	key.WriteString(Delimiter)
 	key.WriteString(logstore)

@@ -35,11 +35,6 @@ type ProducerBatch struct {
 	result       *Result
 }
 
-func generatePackId(source string) string {
-	srcData := source + time.Now().String()
-	return ToMd5(srcData)[0:16]
-}
-
 func newProducerBatch(pool LogGroupPool, packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
 	logGroup := pool.Get()
 	logGroup.LogTags = append(logGroup.LogTags, config.LogTags...)

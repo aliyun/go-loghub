@@ -94,7 +94,7 @@ func (logAccumulator *LogAccumulator) addLogList(project, logstore, shardHash, l
 }
 
 func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, logstore, logTopic, logSource, shardHash string) *ProducerBatch {
-	if producerBatch, ok := logAccumulator.logGroupData[key]; ok {
+	if producerBatch, ok := logAccumulator.logGroupData[key]; ok && producerBatch != nil {
 		return producerBatch
 	}
 
@@ -107,7 +107,7 @@ func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, log
 func (logAccumulator *LogAccumulator) innerSendToServer(key string, producerBatch *ProducerBatch) {
 	level.Debug(logAccumulator.logger).Log("msg", "Send producerBatch to IoWorker from logAccumulator")
 	logAccumulator.threadPool.addTask(producerBatch)
-	delete(logAccumulator.logGroupData, key)
+	logAccumulator.logGroupData[key] = nil
 }
 
 func (logAccumulator *LogAccumulator) getKeyString(project, logstore, logTopic, shardHash, logSource string) string {

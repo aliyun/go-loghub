@@ -294,19 +294,16 @@ func (producer *Producer) Close(timeoutMs int64) error {
 	startCloseTime := time.Now()
 	producer.sendCloseProdcerSignal()
 	producer.moverWaitGroup.Wait()
-	producer.threadPool.threadPoolShutDownFlag.Store(true)
-	for {
-		if atomic.LoadInt64(&producer.mover.ioWorker.taskCount) == 0 && !producer.threadPool.hasTask() {
-			level.Info(producer.logger).Log("msg", "All groutines of producer have been shutdown")
-			return nil
-		}
+	producer.threadPool.ShutDown()
+	for !producer.threadPool.Stopped() {
 		if time.Since(startCloseTime) > time.Duration(timeoutMs)*time.Millisecond {
 			level.Warn(producer.logger).Log("msg", "The producer timeout closes, and some of the cached data may not be sent properly")
 			return errors.New(TimeoutExecption)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-
+	level.Info(producer.logger).Log("msg", "All groutines of producer have been shutdown")
+	return nil
 }
 
 func (producer *Producer) SafeClose() {

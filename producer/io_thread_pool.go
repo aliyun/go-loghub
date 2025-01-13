@@ -1,9 +1,7 @@
 package producer
 
 import (
-	"container/list"
 	"sync"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -12,61 +10,50 @@ import (
 
 type IoThreadPool struct {
 	threadPoolShutDownFlag *atomic.Bool
-	queue                  *list.List // todo: super slow
-	lock                   sync.RWMutex
+	taskCh                 chan *ProducerBatch
 	ioworker               *IoWorker
 	logger                 log.Logger
+	stopped                *atomic.Bool
 }
 
 func initIoThreadPool(ioworker *IoWorker, logger log.Logger) *IoThreadPool {
 	return &IoThreadPool{
 		threadPoolShutDownFlag: atomic.NewBool(false),
-		queue:                  list.New(),
+		taskCh:                 make(chan *ProducerBatch, 100000),
 		ioworker:               ioworker,
 		logger:                 logger,
+		stopped:                atomic.NewBool(false),
 	}
 }
 
 func (threadPool *IoThreadPool) addTask(batch *ProducerBatch) {
-	defer threadPool.lock.Unlock()
-	threadPool.lock.Lock()
-	threadPool.queue.PushBack(batch)
-}
-
-func (threadPool *IoThreadPool) popTask() *ProducerBatch {
-	defer threadPool.lock.Unlock()
-	threadPool.lock.Lock()
-	if threadPool.queue.Len() <= 0 {
-		return nil
-	}
-	ele := threadPool.queue.Front()
-	threadPool.queue.Remove(ele)
-	return ele.Value.(*ProducerBatch)
-}
-
-func (threadPool *IoThreadPool) hasTask() bool {
-	defer threadPool.lock.RUnlock()
-	threadPool.lock.RLock()
-	return threadPool.queue.Len() > 0
+	threadPool.taskCh <- batch
 }
 
 func (threadPool *IoThreadPool) start(ioWorkerWaitGroup *sync.WaitGroup, ioThreadPoolwait *sync.WaitGroup) {
 	defer ioThreadPoolwait.Done()
-	for {
-		if task := threadPool.popTask(); task != nil {
-			threadPool.ioworker.startSendTask(ioWorkerWaitGroup)
-			go func(producerBatch *ProducerBatch) {
-				defer threadPool.ioworker.closeSendTask(ioWorkerWaitGroup)
-				threadPool.ioworker.sendToServer(producerBatch)
-			}(task)
-		} else {
-			if !threadPool.threadPoolShutDownFlag.Load() {
-				time.Sleep(100 * time.Millisecond)
-			} else {
-				level.Info(threadPool.logger).Log("msg", "All cache tasks in the thread pool have been successfully sent")
-				break
-			}
+	for task := range threadPool.taskCh {
+		if task == nil {
+			level.Info(threadPool.logger).Log("msg", "All cache tasks in the thread pool have been successfully sent")
+			threadPool.stopped.Store(true)
+			return
 		}
-	}
 
+		threadPool.ioworker.startSendTask(ioWorkerWaitGroup)
+		go func(producerBatch *ProducerBatch) {
+			defer threadPool.ioworker.closeSendTask(ioWorkerWaitGroup)
+			threadPool.ioworker.sendToServer(producerBatch)
+		}(task)
+	}
+}
+
+func (threadPool *IoThreadPool) ShutDown() {
+	old := threadPool.threadPoolShutDownFlag.Swap(true)
+	if !old {
+		close(threadPool.taskCh)
+	}
+}
+
+func (threadPool *IoThreadPool) Stopped() bool {
+	return threadPool.stopped.Load()
 }

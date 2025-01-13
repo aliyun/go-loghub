@@ -1,6 +1,6 @@
 module github.com/aliyun/aliyun-log-go-sdk
 
-go 1.19
+go 1.21
 
 require (
 	github.com/DataDog/zstd v1.5.5

@@ -13,7 +13,7 @@ import (
 )
 
 type LogAccumulator struct {
-	lock           sync.RWMutex
+	lock           sync.Mutex
 	logGroupData   map[string]*ProducerBatch
 	producerConfig *ProducerConfig
 	ioWorker       *IoWorker

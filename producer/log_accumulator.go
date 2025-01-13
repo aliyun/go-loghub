@@ -37,7 +37,7 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 		producer:       producer,
 		packIdGenrator: newPackIdGenerator(),
 		logGroupPool:   newLogGroupPool(32, config),
-		debugLogger:    level.Error(logger),
+		debugLogger:    level.Debug(logger),
 	}
 }
 

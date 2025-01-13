@@ -31,6 +31,7 @@ func initMover(logAccumulator *LogAccumulator, retryQueue *RetryQueue, ioWorker 
 
 }
 
+// todo: refactor this
 func (mover *Mover) sendToServer(key string, batch *ProducerBatch, config *ProducerConfig) {
 	if value, ok := mover.logAccumulator.logGroupData[key]; !ok {
 		return
@@ -38,18 +39,21 @@ func (mover *Mover) sendToServer(key string, batch *ProducerBatch, config *Produ
 		return
 	}
 	mover.threadPool.addTask(batch)
-	delete(mover.logAccumulator.logGroupData, key)
+	mover.logAccumulator.logGroupData[key] = nil
 }
 
 func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) {
 	defer moverWaitGroup.Done()
 	for !mover.moverShutDownFlag.Load() {
 		sleepMs := config.LingerMs
-
+		hasData := false
 		nowTimeMs := GetTimeMs(time.Now().UnixNano())
 		mover.logAccumulator.lock.Lock()
-		mapCount := len(mover.logAccumulator.logGroupData)
 		for key, batch := range mover.logAccumulator.logGroupData {
+			if batch == nil {
+				continue
+			}
+			hasData = true
 			timeInterval := batch.createTimeMs + config.LingerMs - nowTimeMs
 			if timeInterval <= 0 {
 				level.Debug(mover.logger).Log("msg", "mover groutine execute sent producerBatch to IoWorker")
@@ -62,7 +66,7 @@ func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) 
 		}
 		mover.logAccumulator.lock.Unlock()
 
-		if mapCount == 0 {
+		if !hasData {
 			level.Debug(mover.logger).Log("msg", "No data time in map waiting for user configured RemainMs parameter values")
 			sleepMs = config.LingerMs
 		}
@@ -81,7 +85,9 @@ func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) 
 	}
 	mover.logAccumulator.lock.Lock()
 	for _, batch := range mover.logAccumulator.logGroupData {
-		mover.threadPool.addTask(batch)
+		if batch != nil {
+			mover.threadPool.addTask(batch)
+		}
 	}
 	mover.logAccumulator.logGroupData = make(map[string]*ProducerBatch)
 	mover.logAccumulator.lock.Unlock()

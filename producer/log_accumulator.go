@@ -12,9 +12,6 @@ import (
 	uberatomic "go.uber.org/atomic"
 )
 
-var MAX_BUFFERED_LOGGROUP_COUNT = 1024 * 8
-var MIN_BUFFERED_LOGGROUP_COUNT = 32
-
 type LogAccumulator struct {
 	lock           sync.RWMutex
 	logGroupData   map[string]*ProducerBatch
@@ -25,8 +22,6 @@ type LogAccumulator struct {
 	threadPool     *IoThreadPool
 	producer       *Producer
 	packIdGenrator *PackIdGenerator
-	logGroupPool   LogGroupPool
-	debugLogger    log.Logger
 }
 
 func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.Logger, threadPool *IoThreadPool, producer *Producer) *LogAccumulator {
@@ -39,8 +34,6 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 		threadPool:     threadPool,
 		producer:       producer,
 		packIdGenrator: newPackIdGenerator(),
-		logGroupPool:   newLogGroupPool(MIN_BUFFERED_LOGGROUP_COUNT, MAX_BUFFERED_LOGGROUP_COUNT, config),
-		debugLogger:    level.Debug(logger),
 	}
 }
 
@@ -80,7 +73,7 @@ func (logAccumulator *LogAccumulator) addLog(project, logstore, shardHash, logTo
 	logAccumulator.logGroupData[key] = nil
 	logAccumulator.lock.Unlock()
 
-	logAccumulator.innerSendToServer(producerBatch)
+	logAccumulator.threadPool.addTask(producerBatch)
 }
 
 func (logAccumulator *LogAccumulator) addLogList(project, logstore, shardHash, logTopic, logSource string,
@@ -101,7 +94,7 @@ func (logAccumulator *LogAccumulator) addLogList(project, logstore, shardHash, l
 	logAccumulator.logGroupData[key] = nil
 	logAccumulator.lock.Unlock()
 
-	logAccumulator.innerSendToServer(producerBatch)
+	logAccumulator.threadPool.addTask(producerBatch)
 }
 
 func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, logstore, logTopic, logSource, shardHash string) *ProducerBatch {
@@ -109,15 +102,10 @@ func (logAccumulator *LogAccumulator) getOrCreateProducerBatch(key, project, log
 		return producerBatch
 	}
 
-	logAccumulator.debugLogger.Log("msg", "Create a new ProducerBatch")
-	batch := newProducerBatch(logAccumulator.logGroupPool, logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
+	logAccumulator.producer.monitor.incCreateBatch()
+	batch := newProducerBatch(logAccumulator.packIdGenrator, project, logstore, logTopic, logSource, shardHash, logAccumulator.producerConfig)
 	logAccumulator.logGroupData[key] = batch
 	return batch
-}
-
-func (logAccumulator *LogAccumulator) innerSendToServer(producerBatch *ProducerBatch) {
-	logAccumulator.debugLogger.Log("msg", "Send producerBatch to IoWorker from logAccumulator")
-	logAccumulator.threadPool.addTask(producerBatch)
 }
 
 func (logAccumulator *LogAccumulator) getKeyString(project, logstore, logTopic, shardHash, logSource string) string {

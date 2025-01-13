@@ -260,15 +260,15 @@ func (producer *Producer) waitTime() error {
 	// infinite wait
 	if producer.producerConfig.MaxBlockSec < 0 {
 		for atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
-			time.Sleep(time.Millisecond * 50)
+			time.Sleep(waitTimeUnit)
 		}
 		return nil
 	}
 
-	// limited wait
-	for i := 0; i < producer.producerConfig.MaxBlockSec; i++ {
+	// todo: refine this, limited wait
+	for i := 0; i < producer.producerConfig.MaxBlockSec*waitUnitPerSec; i++ {
 		if atomic.LoadInt64(&producer.producerLogGroupSize) > producer.producerConfig.TotalSizeLnBytes {
-			time.Sleep(time.Second)
+			time.Sleep(waitTimeUnit)
 		} else {
 			return nil
 		}
@@ -278,6 +278,9 @@ func (producer *Producer) waitTime() error {
 	level.Error(producer.logger).Log("msg", "Over producer set maximum blocking time")
 	return errors.New(TimeoutExecption)
 }
+
+const waitTimeUnit = time.Millisecond * 10
+const waitUnitPerSec = int(time.Second / waitTimeUnit)
 
 func (producer *Producer) Start() {
 	producer.moverWaitGroup.Add(1)

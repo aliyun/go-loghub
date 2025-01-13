@@ -12,14 +12,15 @@ import (
 )
 
 type ProducerMetrics struct {
-	send       internal.TimeHistogram // send logs
-	retryCount atomic.Int64
+	sendBatch   internal.TimeHistogram // send logs
+	retryCount  atomic.Int32
+	createBatch atomic.Int32
 
 	onFail    internal.TimeHistogram // onSuccess callback
 	onSuccess internal.TimeHistogram // onFail callback
 
 	waitMemory          internal.TimeHistogram
-	waitMemoryFailCount atomic.Int64
+	waitMemoryFailCount atomic.Int32
 
 	slowFuncs      IntMap
 	superSlowFuncs IntMap
@@ -57,19 +58,19 @@ func newProducerMonitor() *ProducerMonitor {
 
 func (m *ProducerMonitor) recordSuccess(sendBegin time.Time, sendEnd time.Time) {
 	metrics := m.metrics.Load().(*ProducerMetrics)
-	metrics.send.AddSample(float64(sendEnd.Sub(sendBegin).Microseconds()))
+	metrics.sendBatch.AddSample(float64(sendEnd.Sub(sendBegin).Microseconds()))
 	metrics.onSuccess.AddSample(float64(time.Since(sendEnd).Microseconds()))
 }
 
 func (m *ProducerMonitor) recordFailure(sendBegin time.Time, sendEnd time.Time) {
 	metrics := m.metrics.Load().(*ProducerMetrics)
-	metrics.send.AddSample(float64(sendEnd.Sub(sendBegin).Microseconds()))
+	metrics.sendBatch.AddSample(float64(sendEnd.Sub(sendBegin).Microseconds()))
 	metrics.onFail.AddSample(float64(time.Since(sendEnd).Microseconds()))
 }
 
 func (m *ProducerMonitor) recordRetry(sendCost time.Duration) {
 	metrics := m.metrics.Load().(*ProducerMetrics)
-	metrics.send.AddSample(float64(sendCost.Microseconds()))
+	metrics.sendBatch.AddSample(float64(sendCost.Microseconds()))
 	metrics.retryCount.Add(1)
 }
 
@@ -81,6 +82,11 @@ func (m *ProducerMonitor) recordWaitMemory(start time.Time) {
 func (m *ProducerMonitor) incWaitMemoryFail() {
 	metrics := m.metrics.Load().(*ProducerMetrics)
 	metrics.waitMemoryFailCount.Add(1)
+}
+
+func (m *ProducerMonitor) incCreateBatch() {
+	metrics := m.metrics.Load().(*ProducerMetrics)
+	metrics.createBatch.Add(1)
 }
 
 func (m *ProducerMonitor) getAndResetMetrics() *ProducerMetrics {
@@ -106,8 +112,9 @@ func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.
 	for range ticker.C {
 		metrics := m.getAndResetMetrics()
 		logger.Log("msg", "report status",
-			"send", metrics.send.String(),
+			"sendBatch", metrics.sendBatch.String(),
 			"retryCount", metrics.retryCount.Load(),
+			"createBatch", metrics.createBatch.Load(),
 			"onSuccess", metrics.onSuccess.String(),
 			"onFail", metrics.onFail.String(),
 			"waitMemory", metrics.waitMemory.String(),

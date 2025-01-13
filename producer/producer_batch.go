@@ -2,7 +2,6 @@ package producer
 
 import (
 	"math"
-	"sync"
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
@@ -22,7 +21,6 @@ type ProducerBatch struct {
 	shardHash            *string
 	maxReservedAttempts  int
 	useMetricStoreUrl    bool
-	logGroupPool         LogGroupPool
 
 	// read only after seal
 	totalDataSize int64
@@ -35,26 +33,28 @@ type ProducerBatch struct {
 	result       *Result
 }
 
-func newProducerBatch(pool LogGroupPool, packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
-	logGroup := pool.Get()
-	logGroup.LogTags = append(logGroup.LogTags, config.LogTags...)
-	logGroup.Topic = proto.String(logTopic)
-	logGroup.Source = proto.String(logSource)
+func newProducerBatch(packIdGenerator *PackIdGenerator, project, logstore, logTopic, logSource, shardHash string, config *ProducerConfig) *ProducerBatch {
+	logGroup := &sls.LogGroup{
+		Topic:  proto.String(logTopic),
+		Source: proto.String(logSource),
+		Logs:   make([]*sls.Log, 0, config.MaxBatchCount+4),
+	}
 
 	if config.GeneratePackId {
-		packStr := packIdGenerator.GeneratePackId(project, logstore)
+		logGroup.LogTags = append(make([]*sls.LogTag, 0, len(config.LogTags)+1), config.LogTags...)
 		logGroup.LogTags = append(logGroup.LogTags, &sls.LogTag{
 			Key:   &PACK_ID_KEY,
-			Value: proto.String(packStr),
+			Value: proto.String(packIdGenerator.GeneratePackId(project, logstore)),
 		})
+	} else {
+		logGroup.LogTags = config.LogTags
 	}
-	currentTimeMs := time.Now().UnixMilli()
+
 	producerBatch := &ProducerBatch{
 		logGroup:             logGroup,
-		attemptCount:         0,
 		maxRetryIntervalInMs: config.MaxRetryBackoffMs,
 		callBackList:         []CallBack{},
-		createTimeMs:         currentTimeMs,
+		createTimeMs:         time.Now().UnixMilli(),
 		maxRetryTimes:        config.Retries,
 		baseRetryBackoffMs:   config.BaseRetryBackoffMs,
 		project:              project,
@@ -62,12 +62,8 @@ func newProducerBatch(pool LogGroupPool, packIdGenerator *PackIdGenerator, proje
 		result:               initResult(),
 		maxReservedAttempts:  config.MaxReservedAttempts,
 		useMetricStoreUrl:    config.UseMetricStoreURL,
-		totalDataSize:        0,
-		logGroupPool:         pool,
 	}
-	if shardHash == "" {
-		producerBatch.shardHash = nil
-	} else {
+	if shardHash != "" {
 		producerBatch.shardHash = &shardHash
 	}
 	return producerBatch
@@ -116,7 +112,6 @@ func (producerBatch *ProducerBatch) OnSuccess(begin time.Time) {
 			callBack.Success(producerBatch.result)
 		}
 	}
-	producerBatch.Release()
 }
 
 func (producerBatch *ProducerBatch) OnFail(err *sls.Error, begin time.Time) {
@@ -126,12 +121,6 @@ func (producerBatch *ProducerBatch) OnFail(err *sls.Error, begin time.Time) {
 			callBack.Fail(producerBatch.result)
 		}
 	}
-	producerBatch.Release()
-}
-
-func (producerBatch *ProducerBatch) Release() {
-	producerBatch.logGroupPool.Release(producerBatch.logGroup)
-	producerBatch.logGroup = nil
 }
 
 func (producerBatch *ProducerBatch) addAttempt(err *sls.Error, begin time.Time) {
@@ -159,73 +148,4 @@ func (producerBatch *ProducerBatch) getRetryBackoffIntervalMs() int64 {
 		return retryWaitTime
 	}
 	return producerBatch.maxRetryIntervalInMs
-}
-
-type LogGroupPool interface {
-	Get() *sls.LogGroup
-	Release(*sls.LogGroup)
-	Close()
-}
-
-type LogGroupPoolImpl struct {
-	maxIdle int
-	minIdle int
-	config  *ProducerConfig
-
-	mutex            sync.Mutex
-	idleCh           chan *sls.LogGroup
-	idleCount        int
-	releaseIndicator int
-}
-
-func newLogGroupPool(minIdle, maxIdle int, config *ProducerConfig) *LogGroupPoolImpl {
-	return &LogGroupPoolImpl{
-		idleCh:  make(chan *sls.LogGroup, maxIdle),
-		maxIdle: maxIdle,
-		minIdle: minIdle,
-		config:  config,
-	}
-}
-
-func (pool *LogGroupPoolImpl) Get() *sls.LogGroup {
-	pool.mutex.Lock()
-	if pool.idleCount > 0 {
-		defer pool.mutex.Unlock()
-		pool.idleCount--
-		return <-pool.idleCh
-	}
-	pool.mutex.Unlock()
-	return pool.newLogGroup()
-}
-
-func (pool *LogGroupPoolImpl) newLogGroup() *sls.LogGroup {
-	return &sls.LogGroup{
-		Logs:    make([]*sls.Log, 0, pool.config.MaxBatchCount+4),
-		LogTags: make([]*sls.LogTag, 0, len(pool.config.LogTags)+1),
-	}
-}
-
-func (pool *LogGroupPoolImpl) Release(logGroup *sls.LogGroup) {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
-	pool.releaseIndicator++
-	if pool.idleCount >= pool.maxIdle {
-		return
-	}
-	// 10% chance reduce idle count, to make idle count approch minIdle
-	if pool.idleCount >= pool.minIdle && pool.releaseIndicator%10 == 0 {
-		return
-	}
-	logReuse := logGroup.Logs[:0]
-	clear(logReuse)
-	logGroup.Reset()
-	logGroup.Logs = logReuse
-	pool.idleCount++
-	pool.idleCh <- logGroup
-}
-
-func (pool *LogGroupPoolImpl) Close() {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
-	close(pool.idleCh)
 }

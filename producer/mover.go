@@ -35,7 +35,7 @@ func initMover(logAccumulator *LogAccumulator, retryQueue *RetryQueue, ioWorker 
 func (mover *Mover) sendToServer(key string, batch *ProducerBatch, config *ProducerConfig) {
 	if value, ok := mover.logAccumulator.logGroupData[key]; !ok {
 		return
-	} else if GetTimeMs(time.Now().UnixNano())-value.createTimeMs < config.LingerMs {
+	} else if time.Now().UnixMilli()-value.createTimeMs < config.LingerMs {
 		return
 	}
 	mover.threadPool.addTask(batch)
@@ -47,7 +47,7 @@ func (mover *Mover) run(moverWaitGroup *sync.WaitGroup, config *ProducerConfig) 
 	for !mover.moverShutDownFlag.Load() {
 		sleepMs := config.LingerMs
 		hasData := false
-		nowTimeMs := GetTimeMs(time.Now().UnixNano())
+		nowTimeMs := time.Now().UnixMilli()
 		mover.logAccumulator.lock.Lock()
 		for key, batch := range mover.logAccumulator.logGroupData {
 			if batch == nil {

@@ -1,11 +1,14 @@
 package producer
 
 import (
+	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/aliyun/aliyun-log-go-sdk/internal"
 	"github.com/go-kit/kit/log"
+	uberatomic "go.uber.org/atomic"
 )
 
 type ProducerMetrics struct {
@@ -17,6 +20,29 @@ type ProducerMetrics struct {
 
 	waitMemory          internal.TimeHistogram
 	waitMemoryFailCount atomic.Int64
+
+	slowFuncs      IntMap
+	superSlowFuncs IntMap
+}
+
+type IntMap struct {
+	m sync.Map
+}
+
+func (im *IntMap) Increment(key string) {
+	v, _ := im.m.LoadOrStore(key, uberatomic.NewInt32(0))
+	v.(*uberatomic.Int32).Inc()
+}
+
+func (im *IntMap) String() string {
+	s := "{"
+	im.m.Range(func(key, value interface{}) bool {
+		v := value.(*uberatomic.Int32)
+		s += fmt.Sprintf("%s: %d,", key.(string), v.Load())
+		return true
+	})
+	s += "}"
+	return s
 }
 
 type ProducerMonitor struct {
@@ -64,6 +90,17 @@ func (m *ProducerMonitor) getAndResetMetrics() *ProducerMetrics {
 	return old
 }
 
+func (m *ProducerMonitor) recordIfSlow(begin time.Time, name string) {
+	elapsed := time.Since(begin)
+	if elapsed > 1*time.Millisecond {
+		metrics := m.metrics.Load().(*ProducerMetrics)
+		metrics.slowFuncs.Increment(name)
+		if elapsed > 10*time.Millisecond {
+			metrics.superSlowFuncs.Increment(name)
+		}
+	}
+}
+
 func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.Logger) {
 	ticker := time.NewTicker(reportInterval)
 	for range ticker.C {
@@ -75,6 +112,8 @@ func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.
 			"onFail", metrics.onFail.String(),
 			"waitMemory", metrics.waitMemory.String(),
 			"waitMemoryFailCount", metrics.waitMemoryFailCount.Load(),
+			"slowFuncs", metrics.slowFuncs.String(),
+			"superSlowFuncs", metrics.superSlowFuncs.String(),
 		)
 	}
 }

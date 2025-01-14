@@ -43,11 +43,6 @@ type LogStore struct {
 	useMetricStoreURL  bool
 }
 
-type ShardGroup struct {
-	Count int      `json:"count"`
-	Keys  []string `json:"keys"`
-}
-
 // Shard defines shard struct
 type Shard struct {
 	ShardID           int    `json:"shardID"`

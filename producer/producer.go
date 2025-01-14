@@ -188,7 +188,6 @@ func (producer *Producer) SendLogList(project, logstore, topic, source string, l
 	if err != nil {
 		return err
 	}
-	defer producer.monitor.recordIfSlow(time.Now(), "SendLogList")
 
 	return producer.logAccumulator.addLogToProducerBatch(project, logstore, "", topic, source, logList, nil)
 

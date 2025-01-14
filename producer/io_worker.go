@@ -75,6 +75,7 @@ func (ioWorker *IoWorker) sendToServer(producerBatch *ProducerBatch) {
 		"requestId", slsError.RequestID,
 		"errorCode", slsError.Code,
 		"errorMessage", slsError.Message,
+		"logs", len(producerBatch.logGroup.Logs),
 		"canRetry", canRetry)
 	if !canRetry {
 		defer ioWorker.producer.monitor.recordFailure(sendBegin, sendEnd)

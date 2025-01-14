@@ -38,6 +38,7 @@ type ProducerConfig struct {
 	GeneratePackId        bool
 	CredentialsProvider   sls.CredentialsProvider
 	UseMetricStoreURL     bool
+	DisableRuntimeMetrics bool // disable runtime metrics, runtime metrics prints to local log.
 
 	// Deprecated: use CredentialsProvider and UpdateFuncProviderAdapter instead.
 	//

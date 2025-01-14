@@ -312,8 +312,10 @@ func (producer *Producer) Close(timeoutMs int64) error {
 func (producer *Producer) SafeClose() {
 	producer.sendCloseProdcerSignal()
 	producer.moverWaitGroup.Wait()
-	producer.threadPool.threadPoolShutDownFlag.Store(true)
+	level.Info(producer.logger).Log("msg", "Mover close finish")
+	producer.threadPool.ShutDown()
 	producer.ioThreadPoolWaitGroup.Wait()
+	level.Info(producer.logger).Log("msg", "IoThreadPool close finish")
 	producer.ioWorkerWaitGroup.Wait()
 	level.Info(producer.logger).Log("msg", "Producer close finish")
 }

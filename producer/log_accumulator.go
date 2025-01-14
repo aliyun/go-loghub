@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/go-kit/kit/log"
@@ -40,7 +39,6 @@ func initLogAccumulator(config *ProducerConfig, ioWorker *IoWorker, logger log.L
 
 func (logAccumulator *LogAccumulator) addLogToProducerBatch(project, logstore, shardHash, logTopic, logSource string,
 	logData interface{}, callback CallBack) error {
-	defer logAccumulator.producer.monitor.recordIfSlow(time.Now(), "addLogToProducerBatch")
 	if logAccumulator.shutDownFlag.Load() {
 		level.Warn(logAccumulator.logger).Log("msg", "Producer has started and shut down and cannot write to new logs")
 		return errors.New("Producer has started and shut down and cannot write to new logs")

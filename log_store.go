@@ -32,7 +32,7 @@ type LogStore struct {
 	TelemetryType string      `json:"telemetryType"`
 	HotTTL        int32       `json:"hot_ttl,omitempty"`
 	Mode          string      `json:"mode,omitempty"` // "query" or "standard"(default), can't be modified after creation
-	HashConfig    *HashConfig `json:"hash_config,omitempty"`
+	HashConfig    *HashConfig `json:"hashConfig,omitempty"`
 
 	CreateTime     uint32 `json:"createTime,omitempty"`
 	LastModifyTime uint32 `json:"lastModifyTime,omitempty"`
@@ -47,7 +47,7 @@ type LogStore struct {
 type HashConfig struct {
 	MaxHashAttempts int         `json:"maxHashAttempts"`
 	Keys            []string    `json:"keys"`
-	ShardGroup      *ShardGroup `json:"shard_group,omitempty"`
+	ShardGroup      *ShardGroup `json:"shardGroup,omitempty"`
 }
 
 type ShardGroup struct {

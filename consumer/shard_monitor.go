@@ -8,6 +8,7 @@ import (
 	sls "github.com/aliyun/aliyun-log-go-sdk"
 	"github.com/aliyun/aliyun-log-go-sdk/internal"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 type MonitorMetrics struct {
@@ -68,7 +69,7 @@ func (m *ShardMonitor) shouldReport() bool {
 func (m *ShardMonitor) reportByLogger(logger log.Logger) {
 	m.lastReportTime = time.Now()
 	metrics := m.getAndResetMetrics()
-	logger.Log("msg", "report status",
+	level.Info(logger).Log("msg", "report status",
 		"fetchFailed", metrics.fetchReqFailedCount.Load(),
 		"logRawSize", metrics.logRawSize.Load(),
 		"processFailed", metrics.processFailedCount.Load(),

@@ -6,6 +6,7 @@ import (
 
 	"github.com/aliyun/aliyun-log-go-sdk/internal"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 type ProducerMetrics struct {
@@ -74,7 +75,7 @@ func (m *ProducerMonitor) reportThread(reportInterval time.Duration, logger log.
 	ticker := time.NewTicker(reportInterval)
 	for range ticker.C {
 		metrics := m.getAndResetMetrics()
-		logger.Log("msg", "report status",
+		level.Info(logger).Log("msg", "report status",
 			"sendBatch", metrics.sendBatch.String(),
 			"retryCount", metrics.retryCount.Load(),
 			"createBatch", metrics.createBatch.Load(),

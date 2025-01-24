@@ -8,6 +8,8 @@ import (
 	"time"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -48,6 +50,8 @@ func printShardId(shardId string) string {
 
 func TestProducer(t *testing.T) {
 	config := GetDefaultProducerConfig()
+	config.Logger = log.NewLogfmtLogger(os.Stdout)
+	config.Logger = level.NewFilter(config.Logger, level.AllowDebug())
 	config.Endpoint = os.Getenv("LOG_TEST_ENDPOINT")
 	provider := sls.NewStaticCredentialsProvider(os.Getenv("LOG_TEST_ACCESS_KEY_ID"), os.Getenv("LOG_TEST_ACCESS_KEY_SECRET"), "")
 	config.CredentialsProvider = provider

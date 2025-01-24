@@ -33,7 +33,7 @@ git clone git@github.com:aliyun/aliyun-log-go-sdk.git
 
 ## 使用步骤
 
-1.**配置LogHubConfig**
+### 1.**配置LogHubConfig**
 
 LogHubConfig是提供给用户的配置类，用于配置消费策略，您可以根据不同的需求设定不同的值，各参数含义如其中所示
 |参数|含义|详情|
@@ -54,7 +54,7 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |MaxFetchLogGroupCount|数据一次拉取的log group数量|非必填，默认为1000|
 |CursorStartTime|数据点位的时间戳|非必填，CursorPosition为SPECIAL_TIME_CURSOR时需填写|
 |InOrder|shard分裂后是否in order消费|非必填，默认为false，当为true时，分裂shard会在老的read only shard消费完后再继续消费|
-|Logger|自定义日志Logger|非必填，此logger只用于记录消费者自身状态。如果为 nil，会使用默认的logger。若指定了自定义logger，会忽略 AllowLogLevel、LogFileName、LogMaxSize、LogMaxBackups、LogCompass等参数|
+|Logger|自定义日志Logger|非必填，此logger只用于记录消费者自身状态。<ul><li>如果非 nil，会忽略 AllowLogLevel /   LogFileName/ IsJsonType/ LogMaxSize/ LogMaxBackups/ LogCompass 参数。</li><li>如果为 nil，会根据 AllowLogLevel /   LogFileName/ IsJsonType/ LogMaxSize/ LogMaxBackups/ LogCompass 参数自动创建一个 logger 用于记录本地运行日志。</li></ul>|
 |AllowLogLevel|允许的日志级别|非必填，默认为info，日志级别由低到高为debug, info, warn, error，仅高于此AllowLogLevel的才会被log出来|
 |LogFileName|程序运行日志文件名称|非必填，默认为stdout|
 |IsJsonType|是否为json类型|非必填，默认为logfmt格式，true时为json格式|
@@ -67,7 +67,14 @@ LogHubConfig是提供给用户的配置类，用于配置消费策略，您可�
 |AutoCommitIntervalInMS|自动提交checkpoint的时间间隔|非必填，单位为MS，默认时间为60s|
 |Query|过滤规则  基于规则消费时必须设置对应规则 如 *| where a = 'xxx'|非必填|
 
-2.**覆写消费逻辑**
+
+**自定义 logger**
+
+consumer 支持将 consumer 自身本地运行日志写入到自定义 logger 中，可参考 [demo](../example/consumer/custom_logger/with_custom_logger.go)  
+
+
+
+### 2.**覆写消费逻辑**
 
 ```
 func process(shardId int, logGroupList *sls.LogGroupList, checkpointTracker CheckPointTracker) (string, error) {
@@ -99,7 +106,7 @@ type Processor interface {
 
 ```
 
-3.**创建消费者并开始消费**
+### 3.**创建消费者并开始消费**
 
 ```
 // option是LogHubConfig的实例
@@ -113,7 +120,7 @@ consumerWorker.Start()
 
 调用InitConsumerWorkwer方法，将配置实例对象和消费函数传递到参数中生成消费者实例对象,调用Start方法进行消费。
 
-4.**关闭消费者**
+### 4.**关闭消费者**
 
 ```
 ch := make(chan os.Signal, 1) //将os信号值作为信道

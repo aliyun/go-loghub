@@ -1,14 +1,20 @@
 package producer
 
 import (
+	"io"
+	"os"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
-	"io"
 )
 
-func logConfig(producerConfig *ProducerConfig) log.Logger {
+func getProducerLogger(producerConfig *ProducerConfig) log.Logger {
+	// if producerConfig.Logger is not nil, use it as the logger
+	// and ignore AllowLogLevel/LogFileName/LogMaxSize/LogMaxBackups/LogCompass
+	if producerConfig.Logger != nil {
+		return producerConfig.Logger
+	}
 	var writer io.Writer
 	if producerConfig.LogFileName == "" {
 		writer = log.NewSyncWriter(os.Stdout)

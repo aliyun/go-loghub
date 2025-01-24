@@ -31,7 +31,7 @@ type Producer struct {
 }
 
 func NewProducer(producerConfig *ProducerConfig) (*Producer, error) {
-	logger := logConfig(producerConfig)
+	logger := getProducerLogger(producerConfig)
 	finalProducerConfig := validateProducerConfig(producerConfig, logger)
 
 	client, err := createClient(finalProducerConfig, false, logger)
@@ -43,7 +43,7 @@ func NewProducer(producerConfig *ProducerConfig) (*Producer, error) {
 
 // Deprecated: use NewProducer instead.
 func InitProducer(producerConfig *ProducerConfig) *Producer {
-	logger := logConfig(producerConfig)
+	logger := getProducerLogger(producerConfig)
 	finalProducerConfig := validateProducerConfig(producerConfig, logger)
 
 	client, _ := createClient(finalProducerConfig, true, logger)

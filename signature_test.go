@@ -3,10 +3,11 @@ package sls
 import (
 	"crypto/md5"
 	"fmt"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type SignerV1Suite struct {
@@ -36,7 +37,7 @@ func (s *SignerV1Suite) TestSignatureGet() {
 		"Date":                  "Mon, 3 Jan 2010 08:33:47 GMT",
 	}
 	digest := "Rwm6cTKzoti4HWoe+GKcb6Kv07E="
-	expectedAuthStr := fmt.Sprintf("SLS %v:%v", s.AccessKeyID, digest)
+	expectedAuthStr := fmt.Sprintf("LOG %v:%v", s.AccessKeyID, digest)
 
 	err := s.signer.Sign("GET", "/logstores", headers, nil)
 	if err != nil {
@@ -100,7 +101,7 @@ func (s *SignerV1Suite) TestSignaturePost() {
 	if err != nil {
 		assert.Fail(s.T(), err.Error())
 	}
-	expectedAuthStr := fmt.Sprintf("SLS %v:%v", s.AccessKeyID, digest)
+	expectedAuthStr := fmt.Sprintf("LOG %v:%v", s.AccessKeyID, digest)
 	auth := h[HTTPHeaderAuthorization]
 	assert.Equal(s.T(), expectedAuthStr, auth)
 }

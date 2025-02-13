@@ -94,5 +94,6 @@ func GetDefaultProducerConfig() *ProducerConfig {
 		MaxBatchCount:         4096,
 		NoRetryStatusCodeList: []int{400, 404},
 		CompressType:          sls.Compress_LZ4,
+		DisableRuntimeMetrics: true,
 	}
 }

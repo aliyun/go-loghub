@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	lz4 "github.com/pierrec/lz4"
+	lz4 "github.com/pierrec/lz4/v4"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -21,17 +21,27 @@ import (
 
 // LogStore defines LogStore struct
 type LogStore struct {
-	Name          string `json:"logstoreName"`
-	TTL           int    `json:"ttl"`
-	ShardCount    int    `json:"shardCount"`
-	WebTracking   bool   `json:"enable_tracking"`
-	AutoSplit     bool   `json:"autoSplit"`
-	MaxSplitShard int    `json:"maxSplitShard"`
+	Name string `json:"logstoreName"`
+	// 日志总共保存时间（单位天，3650表示永久存储），如果配置了（HotTTL、InfrequentAccessTTL、FileTTL）
+	// 则TTL必须等于HotTTL+InfrequentAccessTTL+FileTTL
+	TTL           int  `json:"ttl"`
+	ShardCount    int  `json:"shardCount"`
+	WebTracking   bool `json:"enable_tracking"`
+	AutoSplit     bool `json:"autoSplit"`
+	MaxSplitShard int  `json:"maxSplitShard"`
 
 	AppendMeta    bool   `json:"appendMeta"`
 	TelemetryType string `json:"telemetryType"`
-	HotTTL        int32  `json:"hot_ttl,omitempty"`
-	Mode          string `json:"mode,omitempty"` // "query" or "standard"(default), can't be modified after creation
+	// 数据在Logstore热存储层中的存储时间，最少为7天。单位：天，取值范围：7～3650。
+	// 当数据的存储时间超过您所配置的热存储层数据保存时间后，数据将转为低频存储。
+	HotTTL int32 `json:"hot_ttl,omitempty"`
+	// 数据在Logstore低频存储层中的存储时间，最少为30天。单位：天，取值范围：30～3650。
+	// 当数据的存储时间超过您所配置的低频存储层数据保存时间后，数据将转为归档存储。
+	InfrequentAccessTTL int32 `json:"infrequentAccessTTL,omitempty"`
+	// 数据在Logstore归档存储层中的存储时间，最少为60天。单位：天，取值范围：60～3650。
+	// 当数据的存储时间超过您所配置的低频存储层数据保存时间后，数据将转为归档存储。
+	FileTTL int32  `json:"fileTTL,omitempty"`
+	Mode    string `json:"mode,omitempty"` // "query" or "standard"(default), can't be modified after creation
 
 	CreateTime     uint32 `json:"createTime,omitempty"`
 	LastModifyTime uint32 `json:"lastModifyTime,omitempty"`
